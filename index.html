@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de mi Taller</title>
+</head>
+<body>
+
+    <h1>⚙️ Panel de Control del Taller</h1>
+    
+    <h3>Nueva Orden de Producción</h3>
+    <input type="text" id="textoOrden" placeholder="Ej: Fabricar 50 tornillos...">
+    <button onclick="guardarOrden()">Agregar Orden</button>
+
+    <h3>Órdenes Pendientes:</h3>
+    <ul id="listaDeOrdenes">
+        </ul>
+    <script>
+        function guardarOrden() {
+            // 1. Atrapamos lo que escribiste en la caja de texto
+            let nuevaTarea = document.getElementById("textoOrden").value;
+            
+            // 2. Le decimos a la lista que agregue esa nueva tarea
+            document.getElementById("listaDeOrdenes").innerHTML += "<li>" + nuevaTarea + "</li>";
+            
+            // 3. Limpiamos la caja de texto para la siguiente orden
+            document.getElementById("textoOrden").value = "";
+        }
+    </script>
+
+</body>
+</html>
