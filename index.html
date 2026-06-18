@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de mi Taller</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <main class="container-fluid" style="padding: 20px;">
-        <h1>⚙️ Panel de Control del Taller</h1>
+        <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
         <hr>
         
         <section>
@@ -22,7 +25,6 @@
                         <input type="text" id="producto" placeholder="Ej: Engranaje 10mm" required>
                     </label>
                 </div>
-                
                 <div class="grid">
                     <label>Cantidad
                         <input type="number" id="cantidad" placeholder="0" min="1" required>
@@ -31,14 +33,13 @@
                         <input type="date" id="fecha" required>
                     </label>
                 </div>
-                
                 <button type="submit" style="margin-top: 15px;">Crear Orden de Trabajo</button>
             </form>
         </section>
 
         <section style="margin-top: 30px; margin-bottom: 30px; background-color: #1a242f; padding: 15px; border-radius: 8px;">
             <label for="buscadorCliente" style="font-weight: bold; margin-bottom: 5px; display: block;">🔍 Filtrar por Cliente:</label>
-            <input type="search" id="buscadorCliente" placeholder="Escribe el nombre del cliente para filtrar..." oninput="filtrarTablas()">
+            <input type="search" id="buscadorCliente" placeholder="Escribe el nombre del cliente para filtrar..." oninput="mostrarTablas()">
         </section>
 
         <section>
@@ -55,8 +56,7 @@
                             <th>Acción</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaDeOrdenes">
-                        </tbody>
+                    <tbody id="tablaDeOrdenes"></tbody>
                 </table>
             </figure>
         </section>
@@ -74,30 +74,41 @@
                             <th>Estado</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaHistorial">
-                        </tbody>
+                    <tbody id="tablaHistorial"></tbody>
                 </table>
             </figure>
         </section>
-
     </main>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            mostrarOrdenes();
-            mostrarHistorial();
+        // =========================================================
+        // REEMPLAZA LAS LÍNEAS DE ABAJO CON TUS DATOS DE FIREBASE:
+        // =========================================================
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY_AQUÍ",
+            authDomain: "TU_AUTH_DOMAIN_AQUÍ",
+            projectId: "TU_PROJECT_ID_AQUÍ",
+            storageBucket: "TU_STORAGE_BUCKET_AQUÍ",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID_AQUÍ",
+            appId: "TU_APP_ID_AQUÍ"
+        };
+        // =========================================================
+
+        // Inicializamos Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Variable local para guardar lo que viene de la nube
+        let todasLasOrdenes = [];
+
+        // ESCUCHA EN TIEMPO REAL: Cada vez que cambie algo en la nube, esto se ejecuta solo
+        db.collection("ordenes").onSnapshot((snapshot) => {
+            todasLasOrdenes = [];
+            snapshot.forEach((doc) => {
+                todasLasOrdenes.push({ id: doc.id, ...doc.data() });
+            });
+            mostrarTablas(); // Redibuja la pantalla con los datos nuevos de la nube
         });
-
-        // Función que se activa cada vez que escribes en el buscador
-        function filtrarTablas() {
-            mostrarOrdenes();
-            mostrarHistorial();
-        }
-
-        function obtenerOrdenes() {
-            let datos = localStorage.getItem("misOrdenesEstructuradas");
-            return datos ? JSON.parse(datos) : [];
-        }
 
         function guardarOrden() {
             let cliente = document.getElementById("cliente").value.trim();
@@ -108,54 +119,49 @@
             let nuevaOrden = {
                 cliente: cliente,
                 producto: producto,
-                cantidad: cantidad,
+                cantidad: parseInt(cantidad),
                 fecha: fecha,
                 estado: "Pendiente" 
             };
             
-            let listaActual = obtenerOrdenes();
-            listaActual.push(nuevaOrden);
+            // Enviamos los datos directamente a la nube de Firebase
+            db.collection("ordenes").add(nuevaOrden);
             
-            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
             document.getElementById("formularioOrden").reset();
-            mostrarOrdenes();
         }
 
-        function mostrarOrdenes() {
-            let listaActual = obtenerOrdenes();
-            let tablaHTML = document.getElementById("tablaDeOrdenes");
-            tablaHTML.innerHTML = ""; 
+        function cambiarEstado(id, nuevoEstado) {
+            // Actualiza el documento en la nube usando su ID único
+            db.collection("ordenes").doc(id).update({ estado: nuevoEstado });
+        }
 
-            // Conseguimos lo que escribiste en el buscador (en minúsculas para evitar problemas)
+        function mostrarTablas() {
+            let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
+            let tablaHistorialHTML = document.getElementById("tablaHistorial");
+            
+            tablaActivasHTML.innerHTML = "";
+            tablaHistorialHTML.innerHTML = "";
+
             let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
 
-            // Filtramos la lista: solo se quedan las órdenes que incluyan lo que buscaste
-            let listaFiltrada = listaActual.filter(orden => 
+            // Filtramos las órdenes según el buscador
+            let ordenesFiltradas = todasLasOrdenes.filter(orden => 
                 orden.cliente.toLowerCase().includes(terminoBusqueda)
             );
 
-            if(listaFiltrada.length === 0) {
-                tablaHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No se encontraron órdenes que coincidan.</td></tr>`;
-                return;
-            }
+            let tieneActivas = false;
+            let tieneHistorial = false;
 
-            // Dibujamos la lista filtrada (usamos el índice original de la lista completa para no romper los botones)
-            listaActual.forEach((orden, indice) => {
-                // Solo si pasa el filtro, la agregamos a la pantalla
-                if (orden.cliente.toLowerCase().includes(terminoBusqueda)) {
-                    let estadoActual = orden.estado || "Pendiente";
-                    let etiquetaEstado = "";
-                    let botonAccion = "";
+            // Separamos y dibujamos las órdenes
+            ordenesFiltradas.forEach((orden) => {
+                if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
+                    tieneActivas = true;
+                    let etiquetaEstado = orden.estado === "Pendiente" ? `<span style="color: #b58900;">🟡 Pendiente</span>` : `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
+                    let botonAccion = orden.estado === "Pendiente" ? 
+                        `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>` : 
+                        `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>`;
 
-                    if (estadoActual === "Pendiente") {
-                        etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
-                        botonAccion = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado(${indice}, 'En proceso')">▶ Iniciar</button>`;
-                    } else if (estadoActual === "En proceso") {
-                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
-                        botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="terminarOrden(${indice})">✓ Terminar</button>`;
-                    }
-
-                    tablaHTML.innerHTML += `
+                    tablaActivasHTML.innerHTML += `
                         <tr>
                             <td><strong>${orden.cliente}</strong></td>
                             <td>${orden.producto}</td>
@@ -165,60 +171,9 @@
                             <td>${botonAccion}</td>
                         </tr>
                     `;
-                }
-            });
-        }
-
-        function cambiarEstado(indice, nuevoEstado) {
-            let listaActual = obtenerOrdenes();
-            listaActual[indice].estado = nuevoEstado;
-            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
-            mostrarOrdenes();
-        }
-
-        function obtenerHistorial() {
-            let datos = localStorage.getItem("misOrdenesTerminadas");
-            return datos ? JSON.parse(datos) : [];
-        }
-
-        function terminarOrden(indice) {
-            let listaActual = obtenerOrdenes();
-            let historial = obtenerHistorial();
-
-            let ordenTerminada = listaActual.splice(indice, 1)[0];
-            ordenTerminada.estado = "Terminado";
-            historial.push(ordenTerminada);
-
-            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
-            localStorage.setItem("misOrdenesTerminadas", JSON.stringify(historial));
-
-            mostrarOrdenes();
-            mostrarHistorial();
-        }
-
-        function mostrarHistorial() {
-            let historial = obtenerHistorial();
-            let tablaHistorialHTML = document.getElementById("tablaHistorial");
-            tablaHistorialHTML.innerHTML = "";
-
-            let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
-
-            // Clonamos e invertimos para mostrar los últimos primero
-            let historialInvertido = [...historial].reverse();
-
-            // Filtramos el historial
-            let historialFiltrado = historialInvertido.filter(orden => 
-                orden.cliente.toLowerCase().includes(terminoBusqueda)
-            );
-
-            if(historialFiltrado.length === 0) {
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No se encontraron trabajos entregados.</td></tr>`;
-                return;
-            }
-
-            historialInvertido.forEach((orden) => {
-                if (orden.cliente.toLowerCase().includes(terminoBusqueda)) {
-                    tablaHistorialHTML.innerHTML += `
+                } else if (orden.estado === "Terminado") {
+                    tieneHistorial = true;
+                    tablaHistorialHTML.innerHTML = `
                         <tr>
                             <td><del>${orden.cliente}</del></td>
                             <td>${orden.producto}</td>
@@ -226,9 +181,16 @@
                             <td>${orden.fecha}</td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
                         </tr>
-                    `;
+                    ` + tablaHistorialHTML.innerHTML; // Hack para que los nuevos terminados queden arriba
                 }
             });
+
+            if (!tieneActivas) {
+                tablaActivasHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes activas.</td></tr>`;
+            }
+            if (!tieneHistorial) {
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
+            }
         }
     </script>
 </body>
