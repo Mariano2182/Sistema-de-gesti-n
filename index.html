@@ -7,72 +7,121 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
 </head>
 <body>
-    <main class="container" style="max-width: 600px; padding-top: 20px;">
-        <h1>⚙️ Panel del Taller</h1>
+    <main class="container-fluid" style="padding: 20px;">
+        <h1>⚙️ Panel de Control del Taller</h1>
         <hr>
         
+        <!-- Formulario más completo -->
         <section>
             <h3>Nueva Orden de Producción</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
-                <input type="text" id="textoOrden" placeholder="Ej: Fabricar 50 tornillos..." required>
-                <button type="submit">Agregar Orden</button>
+                <div class="grid">
+                    <label>Cliente
+                        <input type="text" id="cliente" placeholder="Ej: Juan Pérez" required>
+                    </label>
+                    <label>Producto a Fabricar
+                        <input type="text" id="producto" placeholder="Ej: Engranaje 10mm" required>
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <label>Cantidad
+                        <input type="number" id="cantidad" placeholder="0" min="1" required>
+                    </label>
+                    <label>Fecha de Entrega
+                        <input type="date" id="fecha" required>
+                    </label>
+                </div>
+                
+                <button type="submit" style="margin-top: 15px;">Crear Orden de Trabajo</button>
             </form>
         </section>
 
+        <!-- Tabla de órdenes activas -->
         <section>
-            <h3>Órdenes Pendientes:</h3>
-            <ul id="listaDeOrdenes" style="list-style: none; padding: 0;">
-                </ul>
+            <h3>📋 Órdenes de Trabajo Activas</h3>
+            <figure>
+                <table role="grid">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Entrega</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaDeOrdenes">
+                        <!-- Aquí se meterán las filas automáticamente -->
+                    </tbody>
+                </table>
+            </figure>
         </section>
     </main>
 
     <script>
-        // Cuando la página termine de cargar, que busque y muestre las órdenes guardadas
         document.addEventListener("DOMContentLoaded", mostrarOrdenes);
 
-        // Función para leer la memoria del navegador
         function obtenerOrdenes() {
-            let datosGuardados = localStorage.getItem("misOrdenes");
+            let datosGuardados = localStorage.getItem("misOrdenesEstructuradas");
             return datosGuardados ? JSON.parse(datosGuardados) : [];
         }
 
-        // Función para guardar una nueva orden
         function guardarOrden() {
-            let cajaTexto = document.getElementById("textoOrden");
-            let nuevaTarea = cajaTexto.value.trim();
+            // Atrapamos los 4 datos individuales
+            let cliente = document.getElementById("cliente").value.trim();
+            let producto = document.getElementById("producto").value.trim();
+            let cantidad = document.getElementById("cantidad").value;
+            let fecha = document.getElementById("fecha").value;
+            
+            // Creamos un "paquete" (objeto) con esos datos
+            let nuevaOrden = {
+                cliente: cliente,
+                producto: producto,
+                cantidad: cantidad,
+                fecha: fecha
+            };
             
             let listaActual = obtenerOrdenes();
-            listaActual.push(nuevaTarea); // Sumamos la nueva orden al grupo
+            listaActual.push(nuevaOrden);
             
-            // Guardamos el grupo actualizado en la memoria del navegador
-            localStorage.setItem("misOrdenes", JSON.stringify(listaActual));
+            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
             
-            cajaTexto.value = ""; // Limpiamos el buscador
-            mostrarOrdenes(); // Refrescamos la pantalla
+            // Esto limpia todo el formulario automáticamente
+            document.getElementById("formularioOrden").reset();
+            mostrarOrdenes();
         }
 
-        // Función para dibujar las órdenes en la pantalla
         function mostrarOrdenes() {
             let listaActual = obtenerOrdenes();
-            let listaHTML = document.getElementById("listaDeOrdenes");
-            listaHTML.innerHTML = ""; // Vaciamos la lista vieja
+            let tablaHTML = document.getElementById("tablaDeOrdenes");
+            tablaHTML.innerHTML = ""; // Vaciamos la tabla
+
+            if(listaActual.length === 0) {
+                tablaHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No hay órdenes de trabajo pendientes.</td></tr>`;
+                return;
+            }
 
             listaActual.forEach((orden, indice) => {
-                listaHTML.innerHTML += `
-                    <li style="display: flex; justify-content: space-between; align-items: center; background: #23313d; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
-                        <span>${orden}</span>
-                        <button class="outline" style="width: auto; margin: 0; padding: 5px 10px;" onclick="eliminarOrden(${indice})">✓ Terminar</button>
-                    </li>
+                tablaHTML.innerHTML += `
+                    <tr>
+                        <td><strong>${orden.cliente}</strong></td>
+                        <td>${orden.producto}</td>
+                        <td><mark>${orden.cantidad} uds</mark></td>
+                        <td>${orden.fecha}</td>
+                        <td>
+                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="eliminarOrden(${indice})">✓ Terminar</button>
+                        </td>
+                    </tr>
                 `;
             });
         }
 
-        // Función para borrar una orden cuando se termina
         function eliminarOrden(indice) {
             let listaActual = obtenerOrdenes();
-            listaActual.splice(indice, 1); // Quitamos la orden de la lista
-            localStorage.setItem("misOrdenes", JSON.stringify(listaActual)); // Guardamos el cambio
-            mostrarOrdenes(); // Refrescamos la pantalla
+            listaActual.splice(indice, 1);
+            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
+            mostrarOrdenes();
         }
     </script>
 </body>
