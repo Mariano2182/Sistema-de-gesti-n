@@ -12,7 +12,7 @@
         <hr>
         
         <section>
-            <h3>Nueva Orden de Production</h3>
+            <h3>Nueva Orden de Producción</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
                 <div class="grid">
                     <label>Cliente
@@ -46,7 +46,8 @@
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Entrega</th>
-                            <th>Estado</th> <th>Acción</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDeOrdenes">
@@ -54,14 +55,39 @@
                 </table>
             </figure>
         </section>
+
+        <section style="margin-top: 50px;">
+            <h3>📦 Historial de Trabajos Entregados</h3>
+            <figure>
+                <table role="grid" style="background-color: #141e26;">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Fecha Pactada</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaHistorial">
+                        </tbody>
+                </table>
+            </figure>
+        </section>
+
     </main>
 
     <script>
-        document.addEventListener("DOMContentLoaded", mostrarOrdenes);
+        // Cuando arranca la página, carga ambas tablas
+        document.addEventListener("DOMContentLoaded", () => {
+            mostrarOrdenes();
+            mostrarHistorial();
+        });
 
+        // --- FUNCIONES PARA ÓRDENES ACTIVAS ---
         function obtenerOrdenes() {
-            let datosGuardados = localStorage.getItem("misOrdenesEstructuradas");
-            return datosGuardados ? JSON.parse(datosGuardados) : [];
+            let datos = localStorage.getItem("misOrdenesEstructuradas");
+            return datos ? JSON.parse(datos) : [];
         }
 
         function guardarOrden() {
@@ -70,7 +96,6 @@
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             
-            // Todas las órdenes nuevas nacen en estado "Pendiente"
             let nuevaOrden = {
                 cliente: cliente,
                 producto: producto,
@@ -83,7 +108,6 @@
             listaActual.push(nuevaOrden);
             
             localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
-            
             document.getElementById("formularioOrden").reset();
             mostrarOrdenes();
         }
@@ -99,21 +123,17 @@
             }
 
             listaActual.forEach((orden, indice) => {
-                // Si la orden es vieja y no tiene estado, le ponemos "Pendiente" por defecto
                 let estadoActual = orden.estado || "Pendiente";
-                
-                // Creamos una etiqueta visual bonita y el botón adecuado según el estado
                 let etiquetaEstado = "";
                 let botonAccion = "";
 
                 if (estadoActual === "Pendiente") {
                     etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
-                    // Este botón cambia el estado a 'En proceso'
                     botonAccion = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado(${indice}, 'En proceso')">▶ Iniciar</button>`;
                 } else if (estadoActual === "En proceso") {
                     etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
-                    // Este botón finaliza la orden (la borra de la lista activa)
-                    botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="eliminarOrden(${indice})">✓ Terminar</button>`;
+                    // IMPORTANTE: Ahora este botón llama a 'terminarOrden' en vez de borrar
+                    botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="terminarOrden(${indice})">✓ Terminar</button>`;
                 }
 
                 tablaHTML.innerHTML += `
@@ -129,19 +149,65 @@
             });
         }
 
-        // Nueva función para mover de Pendiente a En proceso
         function cambiarEstado(indice, nuevoEstado) {
             let listaActual = obtenerOrdenes();
-            listaActual[indice].estado = nuevoEstado; // Actualizamos el estado de esa orden específica
-            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual)); // Guardamos en la memoria
-            mostrarOrdenes(); // Volvemos a dibujar la tabla
-        }
-
-        function eliminarOrden(indice) {
-            let listaActual = obtenerOrdenes();
-            listaActual.splice(indice, 1);
+            listaActual[indice].estado = nuevoEstado;
             localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
             mostrarOrdenes();
+        }
+
+
+        // --- FUNCIONES PARA EL HISTORIAL (NUEVAS) ---
+        function obtenerHistorial() {
+            let datos = localStorage.getItem("misOrdenesTerminadas");
+            return datos ? JSON.parse(datos) : [];
+        }
+
+        // Esta función hace la "mudanza" de una tabla a la otra
+        function terminarOrden(indice) {
+            let listaActual = obtenerOrdenes();
+            let historial = obtenerHistorial();
+
+            // 1. Sacamos la orden de la lista de activas
+            let ordenTerminada = listaActual.splice(indice, 1)[0];
+            
+            // 2. Le cambiamos el estado a Terminado
+            ordenTerminada.estado = "Terminado";
+
+            // 3. La metemos en el historial
+            historial.push(ordenTerminada);
+
+            // 4. Guardamos ambos cambios en la memoria del navegador
+            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
+            localStorage.setItem("misOrdenesTerminadas", JSON.stringify(historial));
+
+            // 5. Volvemos a dibujar ambas tablas para que se vea el cambio
+            mostrarOrdenes();
+            mostrarHistorial();
+        }
+
+        function mostrarHistorial() {
+            let historial = obtenerHistorial();
+            let tablaHistorialHTML = document.getElementById("tablaHistorial");
+            tablaHistorialHTML.innerHTML = "";
+
+            if(historial.length === 0) {
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">Aún no has terminado ningún trabajo.</td></tr>`;
+                return;
+            }
+
+            // Mostramos el historial (las más nuevas arriba)
+            historial.reverse().forEach((orden) => {
+                tablaHistorialHTML.innerHTML += `
+                    <tr>
+                        <td><del>${orden.cliente}</del></td>
+                        <td>${orden.producto}</td>
+                        <td>${orden.cantidad} uds</td>
+                        <td>${orden.fecha}</td>
+                        <td><span style="color: #2aa198;">🟢 Entregado</span></td>
+                    </tr>
+                `;
+            });
         }
     </script>
 </body>
