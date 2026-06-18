@@ -36,6 +36,11 @@
             </form>
         </section>
 
+        <section style="margin-top: 30px; margin-bottom: 30px; background-color: #1a242f; padding: 15px; border-radius: 8px;">
+            <label for="buscadorCliente" style="font-weight: bold; margin-bottom: 5px; display: block;">🔍 Filtrar por Cliente:</label>
+            <input type="search" id="buscadorCliente" placeholder="Escribe el nombre del cliente para filtrar..." oninput="filtrarTablas()">
+        </section>
+
         <section>
             <h3>📋 Órdenes de Trabajo Activas</h3>
             <figure>
@@ -78,13 +83,17 @@
     </main>
 
     <script>
-        // Cuando arranca la página, carga ambas tablas
         document.addEventListener("DOMContentLoaded", () => {
             mostrarOrdenes();
             mostrarHistorial();
         });
 
-        // --- FUNCIONES PARA ÓRDENES ACTIVAS ---
+        // Función que se activa cada vez que escribes en el buscador
+        function filtrarTablas() {
+            mostrarOrdenes();
+            mostrarHistorial();
+        }
+
         function obtenerOrdenes() {
             let datos = localStorage.getItem("misOrdenesEstructuradas");
             return datos ? JSON.parse(datos) : [];
@@ -117,35 +126,46 @@
             let tablaHTML = document.getElementById("tablaDeOrdenes");
             tablaHTML.innerHTML = ""; 
 
-            if(listaActual.length === 0) {
-                tablaHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes de trabajo pendientes.</td></tr>`;
+            // Conseguimos lo que escribiste en el buscador (en minúsculas para evitar problemas)
+            let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
+
+            // Filtramos la lista: solo se quedan las órdenes que incluyan lo que buscaste
+            let listaFiltrada = listaActual.filter(orden => 
+                orden.cliente.toLowerCase().includes(terminoBusqueda)
+            );
+
+            if(listaFiltrada.length === 0) {
+                tablaHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No se encontraron órdenes que coincidan.</td></tr>`;
                 return;
             }
 
+            // Dibujamos la lista filtrada (usamos el índice original de la lista completa para no romper los botones)
             listaActual.forEach((orden, indice) => {
-                let estadoActual = orden.estado || "Pendiente";
-                let etiquetaEstado = "";
-                let botonAccion = "";
+                // Solo si pasa el filtro, la agregamos a la pantalla
+                if (orden.cliente.toLowerCase().includes(terminoBusqueda)) {
+                    let estadoActual = orden.estado || "Pendiente";
+                    let etiquetaEstado = "";
+                    let botonAccion = "";
 
-                if (estadoActual === "Pendiente") {
-                    etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
-                    botonAccion = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado(${indice}, 'En proceso')">▶ Iniciar</button>`;
-                } else if (estadoActual === "En proceso") {
-                    etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
-                    // IMPORTANTE: Ahora este botón llama a 'terminarOrden' en vez de borrar
-                    botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="terminarOrden(${indice})">✓ Terminar</button>`;
+                    if (estadoActual === "Pendiente") {
+                        etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
+                        botonAccion = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado(${indice}, 'En proceso')">▶ Iniciar</button>`;
+                    } else if (estadoActual === "En proceso") {
+                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
+                        botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="terminarOrden(${indice})">✓ Terminar</button>`;
+                    }
+
+                    tablaHTML.innerHTML += `
+                        <tr>
+                            <td><strong>${orden.cliente}</strong></td>
+                            <td>${orden.producto}</td>
+                            <td><mark>${orden.cantidad} uds</mark></td>
+                            <td>${orden.fecha}</td>
+                            <td>${etiquetaEstado}</td>
+                            <td>${botonAccion}</td>
+                        </tr>
+                    `;
                 }
-
-                tablaHTML.innerHTML += `
-                    <tr>
-                        <td><strong>${orden.cliente}</strong></td>
-                        <td>${orden.producto}</td>
-                        <td><mark>${orden.cantidad} uds</mark></td>
-                        <td>${orden.fecha}</td>
-                        <td>${etiquetaEstado}</td>
-                        <td>${botonAccion}</td>
-                    </tr>
-                `;
             });
         }
 
@@ -156,32 +176,22 @@
             mostrarOrdenes();
         }
 
-
-        // --- FUNCIONES PARA EL HISTORIAL (NUEVAS) ---
         function obtenerHistorial() {
             let datos = localStorage.getItem("misOrdenesTerminadas");
             return datos ? JSON.parse(datos) : [];
         }
 
-        // Esta función hace la "mudanza" de una tabla a la otra
         function terminarOrden(indice) {
             let listaActual = obtenerOrdenes();
             let historial = obtenerHistorial();
 
-            // 1. Sacamos la orden de la lista de activas
             let ordenTerminada = listaActual.splice(indice, 1)[0];
-            
-            // 2. Le cambiamos el estado a Terminado
             ordenTerminada.estado = "Terminado";
-
-            // 3. La metemos en el historial
             historial.push(ordenTerminada);
 
-            // 4. Guardamos ambos cambios en la memoria del navegador
             localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
             localStorage.setItem("misOrdenesTerminadas", JSON.stringify(historial));
 
-            // 5. Volvemos a dibujar ambas tablas para que se vea el cambio
             mostrarOrdenes();
             mostrarHistorial();
         }
@@ -191,22 +201,33 @@
             let tablaHistorialHTML = document.getElementById("tablaHistorial");
             tablaHistorialHTML.innerHTML = "";
 
-            if(historial.length === 0) {
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">Aún no has terminado ningún trabajo.</td></tr>`;
+            let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
+
+            // Clonamos e invertimos para mostrar los últimos primero
+            let historialInvertido = [...historial].reverse();
+
+            // Filtramos el historial
+            let historialFiltrado = historialInvertido.filter(orden => 
+                orden.cliente.toLowerCase().includes(terminoBusqueda)
+            );
+
+            if(historialFiltrado.length === 0) {
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No se encontraron trabajos entregados.</td></tr>`;
                 return;
             }
 
-            // Mostramos el historial (las más nuevas arriba)
-            historial.reverse().forEach((orden) => {
-                tablaHistorialHTML.innerHTML += `
-                    <tr>
-                        <td><del>${orden.cliente}</del></td>
-                        <td>${orden.producto}</td>
-                        <td>${orden.cantidad} uds</td>
-                        <td>${orden.fecha}</td>
-                        <td><span style="color: #2aa198;">🟢 Entregado</span></td>
-                    </tr>
-                `;
+            historialInvertido.forEach((orden) => {
+                if (orden.cliente.toLowerCase().includes(terminoBusqueda)) {
+                    tablaHistorialHTML.innerHTML += `
+                        <tr>
+                            <td><del>${orden.cliente}</del></td>
+                            <td>${orden.producto}</td>
+                            <td>${orden.cantidad} uds</td>
+                            <td>${orden.fecha}</td>
+                            <td><span style="color: #2aa198;">🟢 Entregado</span></td>
+                        </tr>
+                    `;
+                }
             });
         }
     </script>
