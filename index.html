@@ -11,9 +11,8 @@
         <h1>⚙️ Panel de Control del Taller</h1>
         <hr>
         
-        <!-- Formulario más completo -->
         <section>
-            <h3>Nueva Orden de Producción</h3>
+            <h3>Nueva Orden de Production</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
                 <div class="grid">
                     <label>Cliente
@@ -37,7 +36,6 @@
             </form>
         </section>
 
-        <!-- Tabla de órdenes activas -->
         <section>
             <h3>📋 Órdenes de Trabajo Activas</h3>
             <figure>
@@ -48,12 +46,11 @@
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Entrega</th>
-                            <th>Acción</th>
+                            <th>Estado</th> <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDeOrdenes">
-                        <!-- Aquí se meterán las filas automáticamente -->
-                    </tbody>
+                        </tbody>
                 </table>
             </figure>
         </section>
@@ -68,18 +65,18 @@
         }
 
         function guardarOrden() {
-            // Atrapamos los 4 datos individuales
             let cliente = document.getElementById("cliente").value.trim();
             let producto = document.getElementById("producto").value.trim();
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             
-            // Creamos un "paquete" (objeto) con esos datos
+            // Todas las órdenes nuevas nacen en estado "Pendiente"
             let nuevaOrden = {
                 cliente: cliente,
                 producto: producto,
                 cantidad: cantidad,
-                fecha: fecha
+                fecha: fecha,
+                estado: "Pendiente" 
             };
             
             let listaActual = obtenerOrdenes();
@@ -87,7 +84,6 @@
             
             localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual));
             
-            // Esto limpia todo el formulario automáticamente
             document.getElementById("formularioOrden").reset();
             mostrarOrdenes();
         }
@@ -95,26 +91,50 @@
         function mostrarOrdenes() {
             let listaActual = obtenerOrdenes();
             let tablaHTML = document.getElementById("tablaDeOrdenes");
-            tablaHTML.innerHTML = ""; // Vaciamos la tabla
+            tablaHTML.innerHTML = ""; 
 
             if(listaActual.length === 0) {
-                tablaHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No hay órdenes de trabajo pendientes.</td></tr>`;
+                tablaHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes de trabajo pendientes.</td></tr>`;
                 return;
             }
 
             listaActual.forEach((orden, indice) => {
+                // Si la orden es vieja y no tiene estado, le ponemos "Pendiente" por defecto
+                let estadoActual = orden.estado || "Pendiente";
+                
+                // Creamos una etiqueta visual bonita y el botón adecuado según el estado
+                let etiquetaEstado = "";
+                let botonAccion = "";
+
+                if (estadoActual === "Pendiente") {
+                    etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
+                    // Este botón cambia el estado a 'En proceso'
+                    botonAccion = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado(${indice}, 'En proceso')">▶ Iniciar</button>`;
+                } else if (estadoActual === "En proceso") {
+                    etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
+                    // Este botón finaliza la orden (la borra de la lista activa)
+                    botonAccion = `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="eliminarOrden(${indice})">✓ Terminar</button>`;
+                }
+
                 tablaHTML.innerHTML += `
                     <tr>
                         <td><strong>${orden.cliente}</strong></td>
                         <td>${orden.producto}</td>
                         <td><mark>${orden.cantidad} uds</mark></td>
                         <td>${orden.fecha}</td>
-                        <td>
-                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="eliminarOrden(${indice})">✓ Terminar</button>
-                        </td>
+                        <td>${etiquetaEstado}</td>
+                        <td>${botonAccion}</td>
                     </tr>
                 `;
             });
+        }
+
+        // Nueva función para mover de Pendiente a En proceso
+        function cambiarEstado(indice, nuevoEstado) {
+            let listaActual = obtenerOrdenes();
+            listaActual[indice].estado = nuevoEstado; // Actualizamos el estado de esa orden específica
+            localStorage.setItem("misOrdenesEstructuradas", JSON.stringify(listaActual)); // Guardamos en la memoria
+            mostrarOrdenes(); // Volvemos a dibujar la tabla
         }
 
         function eliminarOrden(indice) {
