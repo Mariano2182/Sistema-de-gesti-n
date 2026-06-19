@@ -28,7 +28,6 @@
             text-align: center;
             font-size: 0.85rem;
         }
-        /* Ajuste para el encabezado de roles */
         .header-taller {
             display: flex;
             justify-content: space-between;
@@ -36,19 +35,49 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
+        /* Pantalla de Login */
+        #pantallaLogin {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 30px;
+            background-color: #1a242f;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+        }
+        .btn-usuario {
+            margin-bottom: 12px;
+            text-align: left;
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
-    <main class="container-fluid" style="padding: 20px;">
+
+    <div id="pantallaLogin">
+        <h2>🏭 Control de Planta</h2>
+        <p style="color: gray;">Selecciona tu usuario para ingresar al taller</p>
+        <hr>
+        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
+    </div>
+
+    <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
         <div class="header-taller">
-            <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
-            <div style="width: auto; min-width: 250px;">
-                <label for="selectorRol" style="font-size: 0.85rem; margin-bottom: 2px; font-weight: bold;">Vista de Pantalla:</label>
-                <select id="selectorRol" onchange="cambiarRol(this.value)" style="margin-bottom: 0; padding: 5px 10px;">
-                    <option value="admin">👔 Modo Administrador</option>
-                    <option value="operario">🛠️ Modo Operario</option>
-                </select>
+            <div>
+                <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
+                <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
+            </div>
+            <div>
+                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;">🚪 Salir / Cambiar Turno</button>
             </div>
         </div>
         <hr>
@@ -71,6 +100,20 @@
                     <label>Fecha de Entrega
                         <input type="date" id="fecha" required>
                     </label>
+                    <label>Asignar a Operario
+                        <select id="asignadoA" required>
+                            <option value="" disabled selected>Selecciona un operario...</option>
+                            <option value="Fernando Morano">Fernando Morano</option>
+                            <option value="David Díaz">David Díaz</option>
+                            <option value="Jorge Quinteros">Jorge Quinteros</option>
+                            <option value="Gerardo Barbero">Gerardo Barbero</option>
+                            <option value="Sebastián Díaz">Sebastián Díaz</option>
+                            <option value="Mariano Ramírez">Mariano Ramírez</option>
+                            <option value="Gustavo Fernández">Gustavo Fernández</option>
+                            <option value="Enzo Ficarra">Enzo Ficarra</option>
+                            
+                        </select>
+                    </label>
                 </div>
                 <button type="submit" id="btnFormulario" style="margin-top: 15px;">Crear Orden de Trabajo</button>
             </form>
@@ -91,6 +134,7 @@
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Plazo / Entrega</th>
+                            <th id="columnaOperarioActivas">Operario Asignado</th>
                             <th>Estado</th>
                             <th>Acciones de Taller</th>
                         </tr>
@@ -110,6 +154,7 @@
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Fecha de Entrega</th>
+                            <th>Operario</th>
                             <th>Estado</th>
                             <th id="columnaAccionesHistorial">Acciones</th>
                         </tr>
@@ -139,7 +184,10 @@
         let db;
         let todasLasOrdenes = [];
         let idEditando = null;
-        let esAdministrador = true; // Control de rol global
+        
+        // Variables de sesión de usuario
+        let usuarioLogueado = null; 
+        let esAdmin = false;
 
         try {
             if (firebaseConfig.apiKey.includes("TU_API_KEY")) {
@@ -149,67 +197,80 @@
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
 
-            // Cargar rol guardado en este dispositivo (Para dejar bloqueadas las tablets del taller)
-            let rolGuardado = localStorage.getItem("rolTaller") || "admin";
-            esAdministrador = (rolGuardado === "admin");
-            document.getElementById("selectorRol").value = rolGuardado;
-            actualizarInterfazPorRol();
+            // Comprobar si ya había una sesión guardada en esta tablet/dispositivo
+            let sesionGuardada = localStorage.getItem("usuarioTaller");
+            if (sesionGuardada) {
+                usuarioLogueado = sesionGuardada;
+                esAdmin = (sesionGuardada === "admin");
+                conectarEscuchaFirebase();
+            }
 
+        } catch (e) {
+            alert("Error crítico de inicialización: " + e.message);
+        }
+
+        // --- SISTEMA DE LOGUEO ---
+        function iniciarSesion(usuario) {
+            if (usuario === "admin") {
+                let pin = prompt("Introduce el PIN de Administrador (Por defecto: 1234):");
+                if (pin === "1234") {
+                    usuarioLogueado = "admin";
+                    esAdmin = true;
+                } else {
+                    alert("❌ PIN Incorrecto.");
+                    return;
+                }
+            } else {
+                let pin = prompt(`Introduce el PIN para ingresar como ${usuario} (Por defecto: 0000):`);
+                if (pin === "0000") {
+                    usuarioLogueado = usuario;
+                    esAdmin = false;
+                } else {
+                    alert("❌ PIN Incorrecto.");
+                    return;
+                }
+            }
+            
+            localStorage.setItem("usuarioTaller", usuarioLogueado);
+            conectarEscuchaFirebase();
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem("usuarioTaller");
+            usuarioLogueado = null;
+            esAdmin = false;
+            document.getElementById("pantallaPrincipal").style.display = "none";
+            document.getElementById("pantallaLogin").style.display = "block";
+        }
+
+        function conectarEscuchaFirebase() {
+            document.getElementById("pantallaLogin").style.display = "none";
+            document.getElementById("pantallaPrincipal").style.display = "block";
+            document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Administrador" : `🛠️ ${usuarioLogueado}`;
+
+            // Ajustar visualización del formulario por rol
+            document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
+            document.getElementById("columnaAccionesHistorial").style.display = esAdmin ? "table-cell" : "none";
+            document.getElementById("columnaOperarioActivas").style.display = esAdmin ? "table-cell" : "none";
+
+            // Escucha en tiempo real de Firebase
             db.collection("ordenes").onSnapshot((snapshot) => {
                 todasLasOrdenes = [];
                 snapshot.forEach((doc) => {
                     todasLasOrdenes.push({ id: doc.id, ...doc.data() });
                 });
                 mostrarTablas();
-            }, (error) => {
-                alert("Error de conexión con Cloud Firestore: " + error.message);
             });
-
-        } catch (e) {
-            alert("Error crítico de inicialización: " + e.message);
-        }
-
-        // --- CONTROL DE SEGURIDAD PARA ROLES ---
-        function cambiarRol(nuevoRol) {
-            if (nuevoRol === "admin") {
-                let pin = prompt("Introduce el PIN de Administrador para desbloquear la edición (Por defecto: 1234):");
-                if (pin === "1234") {
-                    esAdministrador = true;
-                    localStorage.setItem("rolTaller", "admin");
-                } else {
-                    alert("❌ PIN Incorrecto. La pantalla continuará bloqueada en Modo Operario.");
-                    document.getElementById("selectorRol").value = "operario";
-                    esAdministrador = false;
-                }
-            } else {
-                esAdministrador = false;
-                localStorage.setItem("rolTaller", "operario");
-            }
-            actualizarInterfazPorRol();
-        }
-
-        function actualizarInterfazPorRol() {
-            const seccionForm = document.getElementById("seccionFormulario");
-            const colHistorial = document.getElementById("columnaAccionesHistorial");
-            
-            if (esAdministrador) {
-                seccionForm.style.display = "block";
-                if(colHistorial) colHistorial.style.display = "table-cell";
-            } else {
-                seccionForm.style.display = "none";
-                if(colHistorial) colHistorial.style.display = "none";
-                idEditando = null;
-            }
-            mostrarTablas();
         }
 
         function guardarOrden() {
-            if (!db || !esAdministrador) return;
+            if (!db || !esAdmin) return;
             
             let cliente = document.getElementById("cliente").value.trim();
             let producto = document.getElementById("producto").value.trim();
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
+            let asignadoA = document.getElementById("asignadoA").value;
             
             let estadoOrden = idEditando ? todasLasOrdenes.find(o => o.id === idEditando).estado : "Pendiente";
 
@@ -218,6 +279,7 @@
                 producto: producto,
                 cantidad: parseInt(cantidad),
                 fecha: fecha,
+                asignadoA: asignadoA,
                 estado: estadoOrden
             };
             
@@ -246,43 +308,42 @@
         }
 
         function eliminarOrden(id) {
-            if (!esAdministrador) return;
-            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden de forma permanente de la nube?")) {
-                db.collection("ordenes").doc(id).delete()
-                .catch((error) => alert("No se pudo eliminar: " + error.message));
+            if (!esAdmin) return;
+            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden permanentemente?")) {
+                db.collection("ordenes").doc(id).delete();
             }
         }
 
         function editarOrden(id) {
-            if (!esAdministrador) return;
+            if (!esAdmin) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (orden) {
                 document.getElementById("cliente").value = orden.cliente;
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("fecha").value = orden.fecha;
+                document.getElementById("asignadoA").value = orden.asignadoA || "";
                 
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
                 document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden de Trabajo";
-                
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
 
         function clonarOrden(id) {
-            if (!esAdministrador) return;
+            if (!esAdmin) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (orden) {
                 document.getElementById("cliente").value = orden.cliente;
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
+                document.getElementById("asignadoA").value = orden.asignadoA || "";
                 document.getElementById("fecha").value = "";
                 
                 idEditando = null;
                 document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
                 document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Clonada 🔄)";
-                
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -296,13 +357,19 @@
 
             let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
 
-            let ordenesFiltradas = todasLasOrdenes.filter(orden => 
-                orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda)
-            );
+            // --- FILTRADO CRÍTICO POR USER ---
+            // Si es admin ve todo, si es operario solo lo asignado a su nombre
+            let ordenesFiltradas = todasLasOrdenes.filter(orden => {
+                let coincideBusqueda = orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda);
+                if (esAdmin) {
+                    return coincideBusqueda;
+                } else {
+                    return coincideBusqueda && (orden.asignadoA === usuarioLogueado);
+                }
+            });
 
             let tieneActivas = false;
             let tieneHistorial = false;
-
             const hoy = new Date();
             hoy.setHours(0,0,0,0);
 
@@ -333,7 +400,6 @@
                         celdaAlertaFecha = `<span style="color: gray;">Sin fecha</span>`;
                     }
 
-                    // --- NUEVA LÓGICA DE BOTONES DE FLUJO (INICIAR / PAUSAR / REANUDAR / TERMINAR) ---
                     let etiquetaEstado = "";
                     let botonFlujo = "";
 
@@ -354,9 +420,9 @@
                         `;
                     }
 
-                    // Solo inyectamos botones de gestión si es administrador
+                    let celdaOperario = esAdmin ? `<td><strong>${orden.asignadoA || 'Sin asignar'}</strong></td>` : "";
                     let botonesGestionAdmin = "";
-                    if (esAdministrador) {
+                    if (esAdmin) {
                         botonesGestionAdmin = `
                             <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar Trabajo">🔄</button>
                             <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
@@ -373,6 +439,7 @@
                                 ${celdaAlertaFecha}
                                 <br><small style="color: gray; font-size: 0.75rem;">Prog: ${orden.fecha}</small>
                             </td>
+                            ${celdaOperario}
                             <td>${etiquetaEstado}</td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 3px;">
@@ -385,16 +452,13 @@
                 } else if (orden.estado === "Terminado") {
                     tieneHistorial = true;
                     
-                    let celdaAccionesHistorial = "";
-                    if (esAdministrador) {
-                        celdaAccionesHistorial = `
+                    let celdaAccionesHistorial = esAdmin ? `
                             <td>
                                 <div style="display: flex; align-items: center;">
                                     <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
                                     <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
                                 </div>
-                            </td>`;
-                    }
+                            </td>` : "";
 
                     tablaHistorialHTML.innerHTML = `
                         <tr>
@@ -402,6 +466,7 @@
                             <td>${orden.producto}</td>
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
+                            <td><strong>${orden.asignadoA || '---'}</strong></td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
                             ${celdaAccionesHistorial}
                         </tr>
@@ -410,11 +475,12 @@
             });
 
             if (!tieneActivas) {
-                tablaActivasHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes activas.</td></tr>`;
+                let cols = esAdmin ? 7 : 6;
+                tablaActivasHTML.innerHTML = `<tr><td colspan="${cols}" style="text-align: center; color: gray;">No tienes órdenes asignadas activas.</td></tr>`;
             }
             if (!tieneHistorial) {
-                let columnasHistorial = esAdministrador ? 6 : 5;
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="${columnasHistorial}" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
+                let cols = esAdmin ? 7 : 6;
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="${cols}" style="text-align: center; color: gray;">No hay trabajos terminados.</td></tr>`;
             }
         }
     </script>
