@@ -50,6 +50,21 @@
             text-align: left;
             padding-left: 20px;
         }
+        /* Bloque de notas en la tabla */
+        .bloque-nota {
+            display: block;
+            margin-top: 6px;
+            background-color: #232e3c;
+            padding: 6px 10px;
+            border-left: 4px solid #cb4b16;
+            color: #e2e8f0;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.8rem;
+        }
+        .bloque-nota.terminado {
+            border-left-color: #2aa198;
+            background-color: #1a242f;
+        }
     </style>
 </head>
 <body>
@@ -60,13 +75,13 @@
         <hr>
         <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
     </div>
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
@@ -163,14 +178,19 @@
                         <select id="asignadoA" required>
                             <option value="" disabled selected>Selecciona un operario...</option>
                             <option value="Fernando Morano">Fernando Morano</option>
-<option value="David Díaz">David Díaz</option>
-<option value="Jorge Quinteros">Jorge Quinteros</option>
-<option value="Gerardo Barbero">Gerardo Barbero</option>
-<option value="Sebastián Díaz">Sebastián Díaz</option>
-<option value="Mariano Ramírez">Mariano Ramírez</option>
-<option value="Gustavo Fernández">Gustavo Fernández</option>
-<option value="Enzo Ficarra">Enzo Ficarra</option>
+                            <option value="David Díaz">David Díaz</option>
+                            <option value="Jorge Quinteros">Jorge Quinteros</option>
+                            <option value="Gerardo Barbero">Gerardo Barbero</option>
+                            <option value="Sebastián Díaz">Sebastián Díaz</option>
+                            <option value="Mariano Ramírez">Mariano Ramírez</option>
+                            <option value="Gustavo Fernández">Gustavo Fernández</option>
+                            <option value="Enzo Ficarra">Enzo Ficarra</option>
                         </select>
+                    </label>
+                </div>
+                <div class="grid">
+                    <label>Notas / Instrucciones Iniciales de Oficina
+                        <input type="text" id="notas" placeholder="Ej: Controlar tolerancias críticas según plano, usar material estante norte...">
                     </label>
                 </div>
                 <button type="submit" id="btnFormulario" style="margin-top: 15px;">Crear Orden de Trabajo</button>
@@ -224,20 +244,16 @@
     </main>
 
     <script>
-        // =========================================================
-        // ⚠️ PEGA AQUÍ TUS DATOS REALES DESDE LA CONSOLA DE FIREBASE:
-        // =========================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
-  authDomain: "sgi-v01.firebaseapp.com",
-  databaseURL: "https://sgi-v01-default-rtdb.firebaseio.com",
-  projectId: "sgi-v01",
-  storageBucket: "sgi-v01.firebasestorage.app",
-  messagingSenderId: "393270414199",
-  appId: "1:393270414199:web:c46753d5fbbcb7a033ef72",
-  measurementId: "G-G183P4YRVF"
+            authDomain: "sgi-v01.firebaseapp.com",
+            databaseURL: "https://sgi-v01-default-rtdb.firebaseio.com",
+            projectId: "sgi-v01",
+            storageBucket: "sgi-v01.firebasestorage.app",
+            messagingSenderId: "393270414199",
+            appId: "1:393270414199:web:c46753d5fbbcb7a033ef72",
+            measurementId: "G-G183P4YRVF"
         };
-        // =========================================================
 
         let db;
         let todasLasOrdenes = [];
@@ -265,7 +281,6 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        // --- FUNCIONES DE TIEMPO ---
         function formatoTiempo(milisegundos) {
             if (!milisegundos || milisegundos <= 0) return "0m";
             let totalMinutos = Math.floor(milisegundos / 60000);
@@ -336,6 +351,7 @@
             let fecha = document.getElementById("fecha").value;
             let asignadoA = document.getElementById("asignadoA").value;
             let tarea = document.getElementById("tareaRealizar").value;
+            let notas = document.getElementById("notas").value.trim();
             
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
             
@@ -346,8 +362,8 @@
                 fecha: fecha,
                 asignadoA: asignadoA,
                 tarea: tarea,
+                notas: notas,
                 estado: ordenAnterior ? ordenAnterior.estado : "Pendiente",
-                // Conservamos los tiempos si es edición, si es nueva van en 0
                 tiempoAcumulado: ordenAnterior ? (ordenAnterior.tiempoAcumulado || 0) : 0,
                 horaInicio: ordenAnterior ? (ordenAnterior.horaInicio || null) : null
             };
@@ -370,7 +386,7 @@
             }
         }
 
-        // --- NUEVA LÓGICA DE TIEMPOS EN EL CAMBIO DE ESTADO ---
+        // --- ACTUALIZACIÓN DE ESTADOS CON SOLICITUD DE NOTAS ---
         function cambiarEstado(id, nuevoEstado) {
             if (!db) return;
             
@@ -381,14 +397,32 @@
             let ahora = Date.now();
 
             if (nuevoEstado === "En proceso") {
-                // Al iniciar, guardamos la hora exacta
                 actualizaciones.horaInicio = ahora;
-            } else if (nuevoEstado === "Pausado" || nuevoEstado === "Terminado") {
-                // Al pausar o terminar, calculamos cuánto tiempo pasó
+            } else if (nuevoEstado === "Pausado") {
+                // Interrupción del operario: obligamos a declarar la causa
+                let motivo = prompt("⚠️ Especifica el motivo de la pausa / problema en taller:", orden.notas || "");
+                if (motivo !== null) {
+                    actualizaciones.notas = motivo.trim();
+                } else {
+                    return; // Cancela la acción por completo si el operario cierra el cuadro sin aceptar
+                }
+
                 if (orden.horaInicio) {
                     let tiempoTrabajado = ahora - orden.horaInicio;
                     actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
-                    actualizaciones.horaInicio = null; // Reseteamos el cronómetro vivo
+                    actualizaciones.horaInicio = null;
+                }
+            } else if (nuevoEstado === "Terminado") {
+                // Cierre de orden: opcional para reportar detalles finales
+                let notaFinal = prompt("📝 Observaciones o notas finales de cierre (Opcional):", orden.notas || "");
+                if (notaFinal !== null) {
+                    actualizaciones.notas = notaFinal.trim();
+                }
+
+                if (orden.horaInicio) {
+                    let tiempoTrabajado = ahora - orden.horaInicio;
+                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
+                    actualizaciones.horaInicio = null;
                 }
             }
 
@@ -413,6 +447,7 @@
                 document.getElementById("fecha").value = orden.fecha;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
                 document.getElementById("tareaRealizar").value = orden.tarea || "";
+                document.getElementById("notas").value = orden.notas || "";
                 
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
@@ -430,6 +465,7 @@
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
                 document.getElementById("tareaRealizar").value = orden.tarea || ""; 
+                document.getElementById("notas").value = orden.notas || "";
                 document.getElementById("fecha").value = "";
                 
                 idEditando = null;
@@ -467,7 +503,6 @@
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
                 let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
 
-                // Renderizado del Tiempo
                 let textoTiempo = "";
                 if (orden.tiempoAcumulado && orden.tiempoAcumulado > 0) {
                     textoTiempo = `<br><small style="color: #888;">⏱️ ${formatoTiempo(orden.tiempoAcumulado)} neto</small>`;
@@ -475,6 +510,9 @@
                 if (orden.estado === "En proceso") {
                     textoTiempo += `<br><small style="color: #268bd2;">(⏱️ corriendo...)</small>`;
                 }
+
+                // Armamos el bloque visual si la orden tiene alguna nota adjunta
+                let htmlNotaActiva = orden.notas ? `<span class="bloque-nota">💬 <strong>Nota:</strong> ${orden.notas}</span>` : "";
 
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso" || orden.estado === "Pausado") {
                     tieneActivas = true;
@@ -533,7 +571,7 @@
                     tablaActivasHTML.innerHTML += `
                         <tr>
                             <td><strong>${orden.cliente}</strong></td>
-                            <td>${orden.producto} ${textoTarea}</td>
+                            <td>${orden.producto} ${textoTarea} ${htmlNotaActiva}</td>
                             <td><mark>${orden.cantidad} uds</mark></td>
                             <td>
                                 ${celdaAlertaFecha}
@@ -561,11 +599,12 @@
                             </td>` : "";
 
                     let textoTareaHistorial = orden.tarea ? `<br><small style="color: gray; font-size: 0.75rem;">Proceso: ${orden.tarea}</small>` : "";
+                    let htmlNotaHistorial = orden.notas ? `<span class="bloque-nota terminado">💬 <strong>Cierre:</strong> ${orden.notas}</span>` : "";
 
                     tablaHistorialHTML.innerHTML = `
                         <tr>
                             <td><del>${orden.cliente}</del></td>
-                            <td>${orden.producto} ${textoTareaHistorial}</td>
+                            <td>${orden.producto} ${textoTareaHistorial} ${htmlNotaHistorial}</td>
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
                             <td><strong>${orden.asignadoA || '---'}</strong></td>
