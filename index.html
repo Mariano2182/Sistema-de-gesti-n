@@ -15,7 +15,7 @@
         <hr>
         
         <section>
-            <h3>Nueva Orden de Producción</h3>
+            <h3 id="tituloFormulario">Nueva Orden de Producción</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
                 <div class="grid">
                     <label>Cliente
@@ -33,7 +33,7 @@
                         <input type="date" id="fecha" required>
                     </label>
                 </div>
-                <button type="submit" style="margin-top: 15px;">Crear Orden de Trabajo</button>
+                <button type="submit" id="btnFormulario" style="margin-top: 15px;">Crear Orden de Trabajo</button>
             </form>
         </section>
 
@@ -53,7 +53,7 @@
                             <th>Cantidad</th>
                             <th>Entrega</th>
                             <th>Estado</th>
-                            <th>Acción</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDeOrdenes"></tbody>
@@ -72,6 +72,7 @@
                             <th>Cantidad</th>
                             <th>Fecha Pactada</th>
                             <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tablaHistorial"></tbody>
@@ -82,7 +83,7 @@
 
     <script>
         // =========================================================
-        // REEMPLAZA LAS LÍNEAS DE ABAJO CON TUS DATOS DE FIREBASE:
+        // ⚠️ PEGA AQUÍ TUS DATOS REALES DESDE LA CONSOLA DE FIREBASE:
         // =========================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
@@ -96,56 +97,101 @@
         };
         // =========================================================
 
-        // Inicializamos Firebase
+        let db;
+        let todasLasOrdenes = [];
+        let idEditando = null; // Guarda el ID de la orden que se está modificando
+
         try {
+            if (firebaseConfig.apiKey.includes("TU_API_KEY")) {
+                alert("⚠️ ATENCIÓN: No has reemplazado las credenciales de ejemplo de Firebase por tus códigos reales.");
+            }
+            
             firebase.initializeApp(firebaseConfig);
-            var db = firebase.firestore();
+            db = firebase.firestore();
+
+            db.collection("ordenes").onSnapshot((snapshot) => {
+                todasLasOrdenes = [];
+                snapshot.forEach((doc) => {
+                    todasLasOrdenes.push({ id: doc.id, ...doc.data() });
+                });
+                mostrarTablas();
+            }, (error) => {
+                alert("Error de conexión con Cloud Firestore: " + error.message);
+            });
+
         } catch (e) {
-            alert("Error crítico al conectar las credenciales: " + e.message);
+            alert("Error crítico de inicialización: " + e.message);
         }
 
-        let todasLasOrdenes = [];
-
-        // Escucha en tiempo real con detector de errores de conexión
-        db.collection("ordenes").onSnapshot((snapshot) => {
-            todasLasOrdenes = [];
-            snapshot.forEach((doc) => {
-                todasLasOrdenes.push({ id: doc.id, ...doc.data() });
-            });
-            mostrarTablas();
-        }, (error) => {
-            alert("Error de conexión con la Base de Datos: " + error.message);
-        });
-
         function guardarOrden() {
+            if (!db) return alert("No hay conexión con la base de datos.");
+            
             let cliente = document.getElementById("cliente").value.trim();
             let producto = document.getElementById("producto").value.trim();
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             
-            let nuevaOrden = {
+            // Si estamos editando, conservamos su estado actual, si es nueva nace "Pendiente"
+            let estadoOrden = idEditando ? todasLasOrdenes.find(o => o.id === idEditando).estado : "Pendiente";
+
+            let datosOrden = {
                 cliente: cliente,
                 producto: producto,
                 cantidad: parseInt(cantidad),
                 fecha: fecha,
-                estado: "Pendiente" 
+                estado: estadoOrden
             };
             
-            // Ahora si falla, te avisa por qué
-            db.collection("ordenes").add(nuevaOrden)
-            .then(() => {
-                document.getElementById("formularioOrden").reset();
-            })
-            .catch((error) => {
-                alert("No se pudo guardar la orden. Motivo: " + error.message);
-            });
+            if (idEditando) {
+                // ACTUALIZAR EN LA NUBE
+                db.collection("ordenes").doc(idEditando).update(datosOrden)
+                .then(() => {
+                    idEditando = null;
+                    document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
+                    document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción";
+                    document.getElementById("formularioOrden").reset();
+                })
+                .catch((error) => alert("Error al actualizar: " + error.message));
+            } else {
+                // CREAR EN LA NUBE
+                db.collection("ordenes").add(datosOrden)
+                .then(() => {
+                    document.getElementById("formularioOrden").reset();
+                })
+                .catch((error) => alert("No se pudo guardar en la nube: " + error.message));
+            }
         }
 
         function cambiarEstado(id, nuevoEstado) {
+            if (!db) return;
             db.collection("ordenes").doc(id).update({ estado: nuevoEstado })
-            .catch((error) => {
-                alert("No se pudo cambiar el estado: " + error.message);
-            });
+            .catch((error) => alert("No se pudo actualizar el estado: " + error.message));
+        }
+
+        function eliminarOrden(id) {
+            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden de forma permanente de la nube?")) {
+                db.collection("ordenes").doc(id).delete()
+                .catch((error) => alert("No se pudo eliminar: " + error.message));
+            }
+        }
+
+        function editarOrden(id) {
+            let orden = todasLasOrdenes.find(o => o.id === id);
+            if (orden) {
+                // Cargamos los datos en el formulario
+                document.getElementById("cliente").value = orden.cliente;
+                document.getElementById("producto").value = orden.producto;
+                document.getElementById("cantidad").value = orden.cantidad;
+                document.getElementById("fecha").value = orden.fecha;
+                
+                // Cambiamos el estado visual del formulario
+                idEditando = id;
+                document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
+                document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden de Trabajo";
+                
+                // Auto-scroll hacia arriba para que el usuario vea el formulario listo
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
 
         function mostrarTablas() {
@@ -165,12 +211,16 @@
             let tieneHistorial = false;
 
             ordenesFiltradas.forEach((orden) => {
+                // ESTILOS DE BOTONES PEQUEÑOS EN LÍNEA
+                let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
+                let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
+
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
                     tieneActivas = true;
                     let etiquetaEstado = orden.estado === "Pendiente" ? `<span style="color: #b58900;">🟡 Pendiente</span>` : `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
-                    let botonAccion = orden.estado === "Pendiente" ? 
-                        `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>` : 
-                        `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>`;
+                    let botonFlujo = orden.estado === "Pendiente" ? 
+                        `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>` : 
+                        `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>`;
 
                     tablaActivasHTML.innerHTML += `
                         <tr>
@@ -179,7 +229,13 @@
                             <td><mark>${orden.cantidad} uds</mark></td>
                             <td>${orden.fecha}</td>
                             <td>${etiquetaEstado}</td>
-                            <td>${botonAccion}</td>
+                            <td>
+                                <div style="display: flex; align-items: center;">
+                                    ${botonFlujo}
+                                    <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
+                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
+                                </div>
+                            </td>
                         </tr>
                     `;
                 } else if (orden.estado === "Terminado") {
@@ -191,6 +247,9 @@
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
+                            <td>
+                                <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
+                            </td>
                         </tr>
                     ` + tablaHistorialHTML.innerHTML;
                 }
@@ -200,9 +259,11 @@
                 tablaActivasHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes activas.</td></tr>`;
             }
             if (!tieneHistorial) {
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="5" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
             }
         }
     </script>
+</body>
+</html>
 </body>
 </html>
