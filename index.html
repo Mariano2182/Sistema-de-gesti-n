@@ -263,10 +263,6 @@
         let esAdmin = false;
 
         try {
-            if (firebaseConfig.apiKey.includes("TU_API_KEY")) {
-                alert("⚠️ ATENCIÓN: No has reemplazado las credenciales de ejemplo de Firebase por tus códigos reales.");
-            }
-            
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
 
@@ -351,7 +347,7 @@
             let fecha = document.getElementById("fecha").value;
             let asignadoA = document.getElementById("asignadoA").value;
             let tarea = document.getElementById("tareaRealizar").value;
-            let notas = document.getElementById("notas").value.trim();
+            let notas = document.getElementById("notes") ? document.getElementById("notas").value.trim() : "";
             
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
             
@@ -362,7 +358,7 @@
                 fecha: fecha,
                 asignadoA: asignadoA,
                 tarea: tarea,
-                notas: notas,
+                notas: document.getElementById("notas").value.trim(),
                 estado: ordenAnterior ? ordenAnterior.estado : "Pendiente",
                 tiempoAcumulado: ordenAnterior ? (ordenAnterior.tiempoAcumulado || 0) : 0,
                 horaInicio: ordenAnterior ? (ordenAnterior.horaInicio || null) : null
@@ -386,7 +382,7 @@
             }
         }
 
-        // --- ACTUALIZACIÓN DE ESTADOS CON SOLICITUD DE NOTAS ---
+        // --- ACTUALIZACIÓN DE ESTADOS FLEXIBLE (NOTAS OPCIONALES) ---
         function cambiarEstado(id, nuevoEstado) {
             if (!db) return;
             
@@ -398,13 +394,13 @@
 
             if (nuevoEstado === "En proceso") {
                 actualizaciones.horaInicio = ahora;
-            } else if (nuevoEstado === "Pausado") {
-                // Interrupción del operario: obligamos a declarar la causa
-                let motivo = prompt("⚠️ Especifica el motivo de la pausa / problema en taller:", orden.notas || "");
-                if (motivo !== null) {
+            } 
+            else if (nuevoEstado === "Pausado") {
+                // Ventana opcional: si le da Cancelar o acepta en blanco, PAUSA IGUAL sin romper nada
+                let motivo = prompt("⏸️ ¿Quieres dejar una nota para esta pausa? (Opcional - Cancelar o dejar vacío si vas al baño/descanso):", orden.notas || "");
+                
+                if (motivo !== null && motivo.trim() !== "") {
                     actualizaciones.notas = motivo.trim();
-                } else {
-                    return; // Cancela la acción por completo si el operario cierra el cuadro sin aceptar
                 }
 
                 if (orden.horaInicio) {
@@ -412,10 +408,12 @@
                     actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
                     actualizaciones.horaInicio = null;
                 }
-            } else if (nuevoEstado === "Terminado") {
-                // Cierre de orden: opcional para reportar detalles finales
+            } 
+            else if (nuevoEstado === "Terminado") {
+                // Ventana opcional de cierre
                 let notaFinal = prompt("📝 Observaciones o notas finales de cierre (Opcional):", orden.notas || "");
-                if (notaFinal !== null) {
+                
+                if (notaFinal !== null && notaFinal.trim() !== "") {
                     actualizaciones.notas = notaFinal.trim();
                 }
 
@@ -511,7 +509,6 @@
                     textoTiempo += `<br><small style="color: #268bd2;">(⏱️ corriendo...)</small>`;
                 }
 
-                // Armamos el bloque visual si la orden tiene alguna nota adjunta
                 let htmlNotaActiva = orden.notas ? `<span class="bloque-nota">💬 <strong>Nota:</strong> ${orden.notas}</span>` : "";
 
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso" || orden.estado === "Pausado") {
