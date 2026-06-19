@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de mi Taller</title>
+    <title>Sistema de mi Taller - Hoja de Ruta Digital</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -35,7 +35,6 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
-        /* Pantalla de Login */
         #pantallaLogin {
             max-width: 500px;
             margin: 80px auto;
@@ -50,7 +49,6 @@
             text-align: left;
             padding-left: 20px;
         }
-        /* Bloque de notas en la tabla */
         .bloque-nota {
             display: block;
             margin-top: 6px;
@@ -64,6 +62,34 @@
         .bloque-nota.terminado {
             border-left-color: #2aa198;
             background-color: #1a242f;
+        }
+        /* Estilos de la Hoja de Ruta Visual */
+        .contenedor-ruta-visual {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 0.8rem;
+        }
+        .paso-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #2d3d4f;
+            color: #cbd5e1;
+            border: 1px solid #41556c;
+        }
+        .paso-badge.pendiente { border-left: 4px solid #b58900; }
+        .paso-badge.en-proceso { border-left: 4px solid #268bd2; font-weight: bold; background-color: #1e293b; }
+        .paso-badge.pausado { border-left: 4px solid #cb4b16; }
+        .paso-badge.terminado { border-left: 4px solid #2aa198; opacity: 0.6; background-color: #141e26; }
+        
+        .fila-paso-form {
+            background: #141e26;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 4px solid #268bd2;
         }
     </style>
 </head>
@@ -98,7 +124,7 @@
         <hr>
         
         <section id="seccionFormulario">
-            <h3 id="tituloFormulario">Nueva Orden de Producción</h3>
+            <h3 id="tituloFormulario">Nueva Orden con Hoja de Ruta</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
                 <div class="grid">
                     <label>Cliente
@@ -116,81 +142,19 @@
                         <input type="date" id="fecha" required>
                     </label>
                 </div>
-                <div class="grid">
-                    <label>Tarea / Proceso
-                        <select id="tareaRealizar" required>
-                            <option value="" disabled selected>Selecciona la operación...</option>
-                            <option value="Corte Material"> Corte Material</option>
-                            <option value="CAD"> CAD</option>
-                            <option value="CAM"> CAM</option>
-                            <option value="Hoja de Proceso"> Hoja de Proceso</option>
-                            <option value="Torneado Desbaste"> Torneado Desbaste</option>
-                            <option value="Frenteado"> Frenteado</option>
-                            <option value="Fresado"> Fresado</option>
-                            <option value="Perforado"> Perforado</option>
-                            <option value="Roscado"> Roscado</option>
-                            <option value="Perforado-Roscado"> Perforado-Roscado</option>
-                            <option value="Grabado"> Grabado</option>
-                            <option value="Tronzado"> Tronzado</option>
-                            <option value="Avellanado"> Avellanado</option>
-                            <option value="Corte por Hilo"> Corte por Hilo</option>
-                            <option value="Electro Erosión"> Electro Erosión</option>
-                            <option value="Rectificado"> Rectificado</option>
-                            <option value="Tratamiento Térmico"> Tratamiento Térmico</option>
-                            <option value="Cromado"> Cromado</option>
-                            <option value="DMD"> DMD</option>
-                            <option value="Escareado"> Escareado</option>
-                            <option value="Soldadura"> Soldadura</option>
-                            <option value="Blastinado"> Blastinado</option>
-                            <option value="Corte Laser CO2"> Corte Laser CO2</option>
-                            <option value="Integración"> Integración</option>
-                            <option value="Inspección Visual"> Inspección Visual</option>
-                            <option value="Control Dimensional"> Control Dimensional</option>
-                            <option value="FIT Check"> FIT Check</option>
-                            <option value="Mantenimiento Preventivo"> Mantenimiento Preventivo</option>
-                            <option value="Mantenimiento Correctivo"> Mantenimiento Correctivo</option>
-                            <option value="Preventivo Mensual"> Preventivo Mensual</option>
-                            <option value="Preventivo Semestral"> Preventivo Semestral</option>
-                            <option value="Preventivo Trimestral"> Preventivo Trimestral</option>
-                            <option value="Preventivo Anual"> Preventivo Anual</option>
-                            <option value="Mecanizado de Dispositivo"> Mecanizado de Dispositivo</option>
-                            <option value="Rolado"> Rolado</option>
-                            <option value="Materiales"> Materiales</option>
-                            <option value="Herramientas"> Herramientas</option>
-                            <option value="Materiales y Herramientas"> Materiales y Herramientas</option>
-                            <option value="Hoja de Ruta"> Hoja de Ruta</option>
-                            <option value="Retrabajo"> Retrabajo</option>
-                            <option value="Medición pie de Máquina"> Medición pie de Máquina</option>
-                            <option value="Rebarbado"> Rebarbado</option>
-                            <option value="Niquelado"> Niquelado</option>
-                            <option value="Zincado"> Zincado</option>
-                            <option value="Torneado de Terminación"> Torneado de Terminación</option>
-                            <option value="Medición de Dureza"> Medición de Dureza</option>
-                            <option value="Ingeniería"> Ingeniería</option>
-                            <option value="CAD-CAM"> CAD-CAM</option>
-                            <option value="Corte"> Corte</option>
-                            <option value="Materia Prima"> Materia Prima</option>
-                            <option value="Planeado"> Planeado</option>
-                            <option value="Torneado"> Torneado</option>
-                        </select>
-                    </label>
-                    <label>Asignar a Operario
-                        <select id="asignadoA" required>
-                            <option value="" disabled selected>Selecciona un operario...</option>
-                            <option value="Fernando Morano">Fernando Morano</option>
-                            <option value="David Díaz">David Díaz</option>
-                            <option value="Jorge Quinteros">Jorge Quinteros</option>
-                            <option value="Gerardo Barbero">Gerardo Barbero</option>
-                            <option value="Sebastián Díaz">Sebastián Díaz</option>
-                            <option value="Mariano Ramírez">Mariano Ramírez</option>
-                            <option value="Gustavo Fernández">Gustavo Fernández</option>
-                            <option value="Enzo Ficarra">Enzo Ficarra</option>
-                        </select>
-                    </label>
+
+                <div style="background-color: #1a242f; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="margin: 0; color: #268bd2;">📋 Secuencia de la Hoja de Ruta</h4>
+                        <button type="button" class="button" style="width: auto; padding: 4px 12px; margin:0;" onclick="agregarFilaPaso()">➕ Agregar Paso</button>
+                    </div>
+                    <div id="contenedorPasosForm">
+                        </div>
                 </div>
+
                 <div class="grid">
                     <label>Notas / Instrucciones Iniciales de Oficina
-                        <input type="text" id="notas" placeholder="Ej: Controlar tolerancias críticas según plano, usar material estante norte...">
+                        <input type="text" id="notas" placeholder="Ej: Controlar tolerancias críticas según plano...">
                     </label>
                 </div>
                 <button type="submit" id="btnFormulario" style="margin-top: 15px;">Crear Orden de Trabajo</button>
@@ -203,17 +167,17 @@
         </section>
 
         <section>
-            <h3>📋 Órdenes de Trabajo Activas</h3>
+            <h3>📋 Hojas de Ruta Activas en Planta</h3>
             <figure>
                 <table role="grid">
                     <thead>
                         <tr>
                             <th>Cliente</th>
-                            <th>Producto / Tarea</th>
+                            <th>Producto / Hoja de Ruta Digital</th>
                             <th>Cantidad</th>
                             <th>Plazo / Entrega</th>
-                            <th id="columnaOperarioActivas">Operario</th>
-                            <th>Estado / Tiempo</th>
+                            <th id="columnaOperarioActivas">Operario Actual</th>
+                            <th>Estado de Tarea</th>
                             <th>Acciones de Taller</th>
                         </tr>
                     </thead>
@@ -229,11 +193,11 @@
                     <thead>
                         <tr>
                             <th>Cliente</th>
-                            <th>Producto / Proceso</th>
+                            <th>Producto / Ruta Realizada</th>
                             <th>Cantidad</th>
                             <th>Fecha</th>
-                            <th>Operario</th>
-                            <th>Estado / Tiempo</th>
+                            <th>Operario Cierre</th>
+                            <th>Estado / Tiempo Total</th>
                             <th id="columnaAccionesHistorial">Acciones</th>
                         </tr>
                     </thead>
@@ -255,10 +219,13 @@
             measurementId: "G-G183P4YRVF"
         };
 
+        // Listados maestros reutilizables en los selectores dinámicos
+        const LISTA_TAREAS = ["Corte Material", "CAD", "CAM", "Hoja de Proceso", "Torneado Desbaste", "Frenteado", "Fresado", "Perforado", "Roscado", "Perforado-Roscado", "Grabado", "Tronzado", "Avellanado", "Corte por Hilo", "Electro Erosión", "Rectificado", "Tratamiento Térmico", "Cromado", "DMD", "Escareado", "Soldadura", "Blastinado", "Corte Laser CO2", "Integración", "Inspección Visual", "Control Dimensional", "FIT Check", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Preventivo Mensual", "Preventivo Semestral", "Preventivo Trimestral", "Preventivo Anual", "Mecanizado de Dispositivo", "Rolado", "Materiales", "Herramientas", "Materiales y Herramientas", "Hoja de Ruta", "Retrabajo", "Medición pie de Máquina", "Rebarbado", "Niquelado", "Zincado", "Torneado de Terminación", "Medición de Dureza", "Ingeniería", "CAD-CAM", "Corte", "Materia Prima", "Planeado", "Torneado"];
+        const LISTA_OPERARIOS = ["Fernando Morano", "David Díaz", "Jorge Quinteros", "Gerardo Barbero", "Sebastián Díaz", "Mariano Ramírez", "Gustavo Fernández", "Enzo Ficarra"];
+
         let db;
         let todasLasOrdenes = [];
         let idEditando = null;
-        
         let usuarioLogueado = null; 
         let esAdmin = false;
 
@@ -272,9 +239,43 @@
                 esAdmin = (sesionGuardada === "admin");
                 conectarEscuchaFirebase();
             }
-
         } catch (e) {
             alert("Error crítico de inicialización: " + e.message);
+        }
+
+        // --- MANEJO DINÁMICO DE FILAS DE LA HOJA DE RUTA ---
+        function agregarFilaPaso(tareaPrevia = "", operarioPrevio = "") {
+            const contenedor = document.getElementById("contenedorPasosForm");
+            const totalFilas = contenedor.children.length;
+            
+            let opcionesTareas = `<option value="" disabled ${tareaPrevia ? '' : 'selected'}>Selecciona la operación...</option>`;
+            LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrevia ? 'selected' : ''}>${t}</option>`);
+
+            let opcionesOperarios = `<option value="" disabled ${operarioPrevio ? '' : 'selected'}>Selecciona un operario...</option>`;
+            LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrevio ? 'selected' : ''}>${o}</option>`);
+
+            const divFila = document.createElement("div");
+            divFila.className = "grid fila-paso-form";
+            divFila.innerHTML = `
+                <div style="display:flex; align-items:center; font-weight:bold; color:#268bd2;">Paso ${totalFilas + 1}</div>
+                <div>
+                    <select class="select-tarea-ruta" required>${opcionesTareas}</select>
+                </div>
+                <div>
+                    <select class="select-operario-ruta" required>${opcionesOperarios}</select>
+                </div>
+                <div style="display:flex; align-items:center;">
+                    <button type="button" class="outline" style="background-color:transparent; border-color:#d93526; color:#d93526; margin:0; padding:4px 10px;" onclick="this.parentElement.parentElement.remove(); reindexarPasosForm();">❌ Quitar</button>
+                </div>
+            `;
+            contenedor.appendChild(divFila);
+        }
+
+        function reindexarPasosForm() {
+            const contenedor = document.getElementById("contenedorPasosForm");
+            Array.from(contenedor.children).forEach((fila, index) => {
+                fila.children[0].innerText = `Paso ${index + 1}`;
+            });
         }
 
         function formatoTiempo(milisegundos) {
@@ -282,7 +283,6 @@
             let totalMinutos = Math.floor(milisegundos / 60000);
             let horas = Math.floor(totalMinutos / 60);
             let minutos = totalMinutos % 60;
-            
             if (horas > 0) return `${horas}h ${minutos}m`;
             return `${minutos}m`;
         }
@@ -290,32 +290,20 @@
         function iniciarSesion(usuario) {
             if (usuario === "admin") {
                 let pin = prompt("Introduce el PIN de Administrador (Por defecto: 1234):");
-                if (pin === "1234") {
-                    usuarioLogueado = "admin";
-                    esAdmin = true;
-                } else {
-                    alert("❌ PIN Incorrecto.");
-                    return;
-                }
+                if (pin === "1234") { usuarioLogueado = "admin"; esAdmin = true; } 
+                else { alert("❌ PIN Incorrecto."); return; }
             } else {
                 let pin = prompt(`Introduce el PIN para ingresar como ${usuario} (Por defecto: 0000):`);
-                if (pin === "0000") {
-                    usuarioLogueado = usuario;
-                    esAdmin = false;
-                } else {
-                    alert("❌ PIN Incorrecto.");
-                    return;
-                }
+                if (pin === "0000") { usuarioLogueado = usuario; esAdmin = false; } 
+                else { alert("❌ PIN Incorrecto."); return; }
             }
-            
             localStorage.setItem("usuarioTaller", usuarioLogueado);
             conectarEscuchaFirebase();
         }
 
         function cerrarSesion() {
             localStorage.removeItem("usuarioTaller");
-            usuarioLogueado = null;
-            esAdmin = false;
+            usuarioLogueado = null; esAdmin = false;
             document.getElementById("pantallaPrincipal").style.display = "none";
             document.getElementById("pantallaLogin").style.display = "block";
         }
@@ -328,6 +316,10 @@
             document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
             document.getElementById("columnaAccionesHistorial").style.display = esAdmin ? "table-cell" : "none";
             document.getElementById("columnaOperarioActivas").style.display = esAdmin ? "table-cell" : "none";
+
+            // Inicializar el formulario con al menos un paso por defecto si es admin
+            document.getElementById("contenedorPasosForm").innerHTML = "";
+            if(esAdmin) agregarFilaPaso();
 
             db.collection("ordenes").onSnapshot((snapshot) => {
                 todasLasOrdenes = [];
@@ -345,10 +337,29 @@
             let producto = document.getElementById("producto").value.trim();
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
-            let asignadoA = document.getElementById("asignadoA").value;
-            let tarea = document.getElementById("tareaRealizar").value;
-            let notas = document.getElementById("notes") ? document.getElementById("notas").value.trim() : "";
+            let notasInput = document.getElementById("notas").value.trim();
             
+            // Recolectar la Hoja de Ruta Digital armada en el formulario
+            const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
+            if (filasPasos.length === 0) {
+                alert("⚠️ Debes agregar al menos un paso a la Hoja de Ruta.");
+                return;
+            }
+
+            let pasosArray = [];
+            filasPasos.forEach((fila, idx) => {
+                let tareaSel = fila.querySelector(".select-tarea-ruta").value;
+                let operarioSel = fila.querySelector(".select-operario-ruta").value;
+                pasosArray.push({
+                    tarea: tareaSel,
+                    asignadoA: operarioSel,
+                    estado: "Pendiente",
+                    tiempoAcumulado: 0,
+                    horaInicio: null,
+                    notas: ""
+                });
+            });
+
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
             
             let datosOrden = {
@@ -356,12 +367,10 @@
                 producto: producto,
                 cantidad: parseInt(cantidad),
                 fecha: fecha,
-                asignadoA: asignadoA,
-                tarea: tarea,
-                notas: document.getElementById("notas").value.trim(),
-                estado: ordenAnterior ? ordenAnterior.estado : "Pendiente",
-                tiempoAcumulado: ordenAnterior ? (ordenAnterior.tiempoAcumulado || 0) : 0,
-                horaInicio: ordenAnterior ? (ordenAnterior.horaInicio || null) : null
+                notas: notasInput,
+                // Si estamos editando conservamos los pasos anteriores o pisamos según lógica
+                pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
+                estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
             
             if (idEditando) {
@@ -371,66 +380,91 @@
                     document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
                     document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción";
                     document.getElementById("formularioOrden").reset();
+                    document.getElementById("contenedorPasosForm").innerHTML = "";
+                    agregarFilaPaso();
                 })
                 .catch((error) => alert("Error al actualizar: " + error.message));
             } else {
                 db.collection("ordenes").add(datosOrden)
                 .then(() => {
                     document.getElementById("formularioOrden").reset();
+                    document.getElementById("contenedorPasosForm").innerHTML = "";
+                    agregarFilaPaso();
                 })
                 .catch((error) => alert("No se pudo guardar en la nube: " + error.message));
             }
         }
 
-        // --- ACTUALIZACIÓN DE ESTADOS FLEXIBLE (NOTAS OPCIONALES) ---
+        // --- NUEVA LÓGICA DE ESTADOS PARA LA HOJA DE RUTA DIGITAL ---
         function cambiarEstado(id, nuevoEstado) {
             if (!db) return;
-            
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (!orden) return;
 
-            let actualizaciones = { estado: nuevoEstado };
+            // Compatibilidad: Si la orden es vieja y no tiene array de pasos, lo creamos al vuelo
+            let pasos = orden.pasos || [{
+                tarea: orden.tarea || "Proceso",
+                asignadoA: orden.asignadoA || "Sin asignar",
+                estado: orden.estado || "Pendiente",
+                tiempoAcumulado: orden.tiempoAcumulado || 0,
+                horaInicio: orden.horaInicio || null,
+                notas: orden.notas || ""
+            }];
+
+            // Encontrar qué paso de la Hoja de Ruta está activo actualmente
+            let idxActivo = pasos.findIndex(p => p.estado !== "Terminado");
+            if (idxActivo === -1) idxActivo = pasos.length - 1; // Por resguardo
+
+            let paso = pasos[idxActivo];
             let ahora = Date.now();
 
             if (nuevoEstado === "En proceso") {
-                actualizaciones.horaInicio = ahora;
+                paso.horaInicio = ahora;
+                paso.estado = "En proceso";
             } 
             else if (nuevoEstado === "Pausado") {
-                // Ventana opcional: si le da Cancelar o acepta en blanco, PAUSA IGUAL sin romper nada
-                let motivo = prompt("⏸️ ¿Quieres dejar una nota para esta pausa? (Opcional - Cancelar o dejar vacío si vas al baño/descanso):", orden.notas || "");
-                
+                let motivo = prompt("⏸️ ¿Quieres dejar una nota para esta pausa? (Opcional):", paso.notas || "");
                 if (motivo !== null && motivo.trim() !== "") {
-                    actualizaciones.notas = motivo.trim();
+                    paso.notas = motivo.trim();
                 }
-
-                if (orden.horaInicio) {
-                    let tiempoTrabajado = ahora - orden.horaInicio;
-                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
-                    actualizaciones.horaInicio = null;
+                if (paso.horaInicio) {
+                    let tiempoTrabajado = ahora - paso.horaInicio;
+                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + tiempoTrabajado;
+                    paso.horaInicio = null;
                 }
+                paso.estado = "Pausado";
             } 
             else if (nuevoEstado === "Terminado") {
-                // Ventana opcional de cierre
-                let notaFinal = prompt("📝 Observaciones o notas finales de cierre (Opcional):", orden.notas || "");
-                
+                let notaFinal = prompt("📝 Observaciones o notas de cierre de este paso (Opcional):", paso.notas || "");
                 if (notaFinal !== null && notaFinal.trim() !== "") {
-                    actualizaciones.notas = notaFinal.trim();
+                    paso.notas = notaFinal.trim();
                 }
-
-                if (orden.horaInicio) {
-                    let tiempoTrabajado = ahora - orden.horaInicio;
-                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
-                    actualizaciones.horaInicio = null;
+                if (paso.horaInicio) {
+                    let tiempoTrabajado = ahora - paso.horaInicio;
+                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + tiempoTrabajado;
+                    paso.horaInicio = null;
                 }
+                paso.estado = "Terminado";
             }
 
-            db.collection("ordenes").doc(id).update(actualizaciones)
-            .catch((error) => alert("No se pudo actualizar el estado: " + error.message));
+            // Calcular el estado global de toda la orden de producción
+            let ordenEstadoGlobal = "En proceso";
+            if (pasos.every(p => p.estado === "Terminado")) {
+                ordenEstadoGlobal = "Terminado";
+            } else if (pasos.every(p => p.estado === "Pendiente")) {
+                ordenEstadoGlobal = "Pendiente";
+            }
+
+            db.collection("ordenes").doc(id).update({
+                pasos: pasos,
+                estado: ordenEstadoGlobal
+            })
+            .catch((error) => alert("No se pudo actualizar el estado de la hoja de ruta: " + error.message));
         }
 
         function eliminarOrden(id) {
             if (!esAdmin) return;
-            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden permanentemente?")) {
+            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden y toda su Hoja de Ruta permanentemente?")) {
                 db.collection("ordenes").doc(id).delete();
             }
         }
@@ -443,13 +477,19 @@
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("fecha").value = orden.fecha;
-                document.getElementById("asignadoA").value = orden.asignadoA || "";
-                document.getElementById("tareaRealizar").value = orden.tarea || "";
                 document.getElementById("notas").value = orden.notas || "";
+                
+                // Cargar los pasos existentes en el editor
+                document.getElementById("contenedorPasosForm").innerHTML = "";
+                if (orden.pasos && orden.pasos.length > 0) {
+                    orden.pasos.forEach(p => agregarFilaPaso(p.tarea, p.asignadoA));
+                } else {
+                    agregarFilaPaso(orden.tarea, orden.asignadoA);
+                }
                 
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
-                document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden de Trabajo";
+                document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden e Historial de Ruta";
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -461,14 +501,19 @@
                 document.getElementById("cliente").value = orden.cliente;
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
-                document.getElementById("asignadoA").value = orden.asignadoA || "";
-                document.getElementById("tareaRealizar").value = orden.tarea || ""; 
                 document.getElementById("notas").value = orden.notas || "";
                 document.getElementById("fecha").value = "";
                 
+                document.getElementById("contenedorPasosForm").innerHTML = "";
+                if (orden.pasos && orden.pasos.length > 0) {
+                    orden.pasos.forEach(p => agregarFilaPaso(p.tarea, p.asignadoA));
+                } else {
+                    agregarFilaPaso(orden.tarea, orden.asignadoA);
+                }
+                
                 idEditando = null;
                 document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
-                document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Clonada 🔄)";
+                document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Ruta Clonada 🔄)";
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -481,133 +526,142 @@
             tablaHistorialHTML.innerHTML = "";
 
             let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
-
-            let ordenesFiltradas = todasLasOrdenes.filter(orden => {
-                let coincideBusqueda = orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda);
-                if (esAdmin) {
-                    return coincideBusqueda;
-                } else {
-                    return coincideBusqueda && (orden.asignadoA === usuarioLogueado);
-                }
-            });
-
-            let tieneActivas = false;
-            let tieneHistorial = false;
-            const hoy = new Date();
+            let hoy = new Date();
             hoy.setHours(0,0,0,0);
 
-            ordenesFiltradas.forEach((orden) => {
+            todasLasOrdenes.forEach((orden) => {
+                // Compatibilidad hacia atrás
+                let pasos = orden.pasos || [{
+                    tarea: orden.tarea || "Proceso general",
+                    asignadoA: orden.asignadoA || "Sin Asignar",
+                    estado: orden.estado || "Pendiente",
+                    tiempoAcumulado: orden.tiempoAcumulado || 0,
+                    horaInicio: orden.horaInicio || null,
+                    notas: orden.notas || ""
+                }];
+
+                // Identificar paso actual
+                let idxPasoActivo = pasos.findIndex(p => p.estado !== "Terminado");
+                let pasoActivo = idxPasoActivo !== -1 ? pasos[idxPasoActivo] : pasos[pasos.length - 1];
+
+                // --- FILTRADO INTELIGENTE DE PANTALLA ---
+                let coincideBusqueda = orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda);
+                if (!coincideBusqueda) return;
+
+                // Si es operario, SOLO ve la orden si el paso ACTIVO le pertenece a él
+                if (!esAdmin && orden.estado !== "Terminado") {
+                    if (pasoActivo.asignadoA !== usuarioLogueado) return;
+                }
+
                 let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
                 let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
 
-                let textoTiempo = "";
-                if (orden.tiempoAcumulado && orden.tiempoAcumulado > 0) {
-                    textoTiempo = `<br><small style="color: #888;">⏱️ ${formatoTiempo(orden.tiempoAcumulado)} neto</small>`;
-                }
-                if (orden.estado === "En proceso") {
-                    textoTiempo += `<br><small style="color: #268bd2;">(⏱️ corriendo...)</small>`;
+                // Construcción de la Hoja de Ruta en formato visual de Badges continuos
+                let htmlRutaVisual = `<div class="contenedor-ruta-visual">`;
+                let tiempoTotalAcumulado = 0;
+
+                pasos.forEach((p, index) => {
+                    tiempoTotalAcumulado += (p.tiempoAcumulado || 0);
+                    let indicadorEstado = "⚪";
+                    let clasePaso = "pendiente";
+                    if (p.estado === "Terminado") { indicadorEstado = "✓"; clasePaso = "terminado"; }
+                    else if (p.estado === "En proceso") { indicadorEstado = "🔵 ⏳"; clasePaso = "en-proceso"; }
+                    else if (p.estado === "Pausado") { indicadorEstado = "⏸️"; clasePaso = "pausado"; }
+
+                    htmlRutaVisual += `
+                        <span class="paso-badge ${clasePaso}">
+                            ${indicadorEstado} ${index+1}. ${p.tarea} (${p.asignadoA.split(' ')[0]})
+                        </span>
+                        ${index < pasos.length - 1 ? '➡️' : ''}
+                    `;
+                });
+                htmlRutaVisual += `</div>`;
+
+                // Mostrar Notas u observaciones del paso activo
+                let htmlNotaActiva = pasoActivo.notas ? `<span class="bloque-nota">💬 <strong>Nota de Ruta:</strong> ${pasoActivo.notas}</span>` : "";
+                if(orden.notas && !pasoActivo.notas) {
+                    htmlNotaActiva = `<span class="bloque-nota" style="border-left-color:#268bd2;">📋 <strong>Oficina:</strong> ${orden.notas}</span>`;
                 }
 
-                let htmlNotaActiva = orden.notas ? `<span class="bloque-nota">💬 <strong>Nota:</strong> ${orden.notas}</span>` : "";
+                // Cálculo de tiempos de red
+                let textoTiempo = `<br><small style="color: #888;">⏱️ ${formatoTiempo(pasoActivo.tiempoAcumulado)} en paso</small>`;
+                if (pasoActivo.estado === "En proceso") {
+                    textoTiempo += `<br><small style="color: #268bd2;">(corriendo...)</small>`;
+                }
 
-                if (orden.estado === "Pendiente" || orden.estado === "En proceso" || orden.estado === "Pausado") {
-                    tieneActivas = true;
-                    
+                if (orden.estado !== "Terminado") {
+                    // --- TABLA DE ÓRDENES ACTIVAS ---
                     let celdaAlertaFecha = "";
                     if (orden.fecha) {
                         const fechaEntrega = new Date(orden.fecha + 'T00:00:00');
-                        const difTiempo = fechaEntrega - hoy;
-                        const difDias = Math.floor(difTiempo / (1000 * 60 * 60 * 24));
-
-                        if (difDias < 0) {
-                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #721c24; color: #f8d7da;">🔴 Atrasado (${Math.abs(difDias)}d)</span>`;
-                        } else if (difDias === 0) {
-                            celdaAlertaFecha = `<span class="badge-fecha alerta-hoy">🚨 ENTREGA HOY</span>`;
-                        } else if (difDias <= 3) {
-                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #b58900; color: white;">🟡 Quedan ${difDias}d</span>`;
-                        } else {
-                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #2aa198; color: white;">🟢 Faltan ${difDias}d</span>`;
-                        }
-                    } else {
-                        celdaAlertaFecha = `<span style="color: gray;">Sin fecha</span>`;
+                        const difDias = Math.floor((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+                        if (difDias < 0) celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #721c24; color: #f8d7da;">🔴 Atrasado (${Math.abs(difDias)}d)</span>`;
+                        else if (difDias === 0) celdaAlertaFecha = `<span class="badge-fecha alerta-hoy">🚨 ENTREGA HOY</span>`;
+                        else if (difDias <= 3) celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #b58900; color: white;">🟡 Quedan ${difDias}d</span>`;
+                        else celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #2aa198; color: white;">🟢 Faltan ${difDias}d</span>`;
                     }
 
                     let etiquetaEstado = "";
                     let botonFlujo = "";
 
-                    if (orden.estado === "Pendiente") {
-                        etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
-                        botonFlujo = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>`;
-                    } else if (orden.estado === "En proceso") {
-                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
+                    if (pasoActivo.estado === "Pendiente") {
+                        etiquetaEstado = `<span style="color: #b58900;">🟡 Esperando</span>`;
+                        botonFlujo = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar Paso</button>`;
+                    } else if (pasoActivo.estado === "En proceso") {
+                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En Proceso</span>`;
                         botonFlujo = `
                             <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px; border-color: #cb4b16; color: #cb4b16;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸ Pausar</button>
-                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>
+                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar Paso</button>
                         `;
-                    } else if (orden.estado === "Pausado") {
+                    } else if (pasoActivo.estado === "Pausado") {
                         etiquetaEstado = `<span style="color: #cb4b16; font-weight: bold;">🟠 Pausado</span>`;
                         botonFlujo = `
                             <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Reanudar</button>
-                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>
+                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar Paso</button>
                         `;
                     }
 
-                    let celdaOperario = esAdmin ? `<td><strong>${orden.asignadoA || 'Sin asignar'}</strong></td>` : "";
-                    let botonesGestionAdmin = "";
-                    if (esAdmin) {
-                        botonesGestionAdmin = `
-                            <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar Trabajo">🔄</button>
-                            <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
-                            <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
-                        `;
-                    }
-
-                    let textoTarea = orden.tarea ? `<br><small style="background-color: #2d3d4f; padding: 2px 6px; border-radius: 4px; color: #cbd5e1; font-size: 0.75rem; font-weight: bold;">🛠️ ${orden.tarea}</small>` : "";
+                    let celdaOperario = esAdmin ? `<td><strong>${pasoActivo.asignadoA}</strong> <small style="display:block;color:gray;">Paso ${idxPasoActivo+1}</small></td>` : "";
+                    let botonesGestionAdmin = esAdmin ? `
+                        <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar">🔄</button>
+                        <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
+                        <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
+                    ` : "";
 
                     tablaActivasHTML.innerHTML += `
                         <tr>
                             <td><strong>${orden.cliente}</strong></td>
-                            <td>${orden.producto} ${textoTarea} ${htmlNotaActiva}</td>
+                            <td>${orden.producto} ${htmlRutaVisual} ${htmlNotaActiva}</td>
                             <td><mark>${orden.cantidad} uds</mark></td>
-                            <td>
-                                ${celdaAlertaFecha}
-                                <br><small style="color: gray; font-size: 0.75rem;">Prog: ${orden.fecha}</small>
-                            </td>
+                            <td>${celdaAlertaFecha}<br><small style="color: gray; font-size: 0.75rem;">Prog: ${orden.fecha}</small></td>
                             ${celdaOperario}
                             <td>${etiquetaEstado} ${textoTiempo}</td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 3px;">
-                                    ${botonFlujo}
-                                    ${botonesGestionAdmin}
-                                </div>
-                            </td>
+                            <td><div style="display: flex; align-items: center; gap: 3px;">${botonFlujo} ${botonesGestionAdmin}</div></td>
                         </tr>
                     `;
-                } else if (orden.estado === "Terminado") {
-                    tieneHistorial = true;
-                    
+                } else {
+                    // --- TABLA DE HISTORIAL / ENTREGADOS ---
                     let celdaAccionesHistorial = esAdmin ? `
-                            <td>
-                                <div style="display: flex; align-items: center;">
-                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
-                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
-                                </div>
-                            </td>` : "";
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
+                                <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
+                            </div>
+                        </td>` : "";
 
-                    let textoTareaHistorial = orden.tarea ? `<br><small style="color: gray; font-size: 0.75rem;">Proceso: ${orden.tarea}</small>` : "";
-                    let htmlNotaHistorial = orden.notas ? `<span class="bloque-nota terminado">💬 <strong>Cierre:</strong> ${orden.notas}</span>` : "";
+                    let ultimaNotaCierre = pasos[pasos.length - 1].notas ? `<span class="bloque-nota terminado">💬 <strong>Cierre final:</strong> ${pasos[pasos.length - 1].notas}</span>` : "";
 
                     tablaHistorialHTML.innerHTML = `
                         <tr>
                             <td><del>${orden.cliente}</del></td>
-                            <td>${orden.producto} ${textoTareaHistorial} ${htmlNotaHistorial}</td>
+                            <td>${orden.producto} ${htmlRutaVisual} ${ultimaNotaCierre}</td>
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
-                            <td><strong>${orden.asignadoA || '---'}</strong></td>
+                            <td><strong>${pasos[pasos.length - 1].asignadoA}</strong></td>
                             <td>
                                 <span style="color: #2aa198;">🟢 Entregado</span>
-                                ${textoTiempo}
+                                <br><small style="color:gray;">⏱️ Total: ${formatoTiempo(tiempoTotalAcumulado)}</small>
                             </td>
                             ${celdaAccionesHistorial}
                         </tr>
@@ -615,13 +669,12 @@
                 }
             });
 
-            if (!tieneActivas) {
-                let cols = esAdmin ? 7 : 6;
-                tablaActivasHTML.innerHTML = `<tr><td colspan="${cols}" style="text-align: center; color: gray;">No tienes órdenes asignadas activas.</td></tr>`;
+            // Mensajes de tablas vacías
+            if (tablaActivasHTML.children.length === 0) {
+                tablaActivasHTML.innerHTML = `<tr><td colspan="${esAdmin ? 7 : 6}" style="text-align: center; color: gray;">No hay Hojas de Ruta activas en este momento.</td></tr>`;
             }
-            if (!tieneHistorial) {
-                let cols = esAdmin ? 7 : 6;
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="${cols}" style="text-align: center; color: gray;">No hay trabajos terminados.</td></tr>`;
+            if (tablaHistorialHTML.children.length === 0) {
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="${esAdmin ? 7 : 6}" style="text-align: center; color: gray;">No hay trabajos terminados en el historial.</td></tr>`;
             }
         }
     </script>
