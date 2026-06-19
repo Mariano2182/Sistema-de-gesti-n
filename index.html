@@ -59,14 +59,14 @@
         <p style="color: gray;">Selecciona tu usuario para ingresar al taller</p>
         <hr>
         <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
+<button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
     </div>
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
@@ -100,18 +100,30 @@
                     <label>Fecha de Entrega
                         <input type="date" id="fecha" required>
                     </label>
+                </div>
+                <div class="grid">
+                    <label>Tarea / Proceso
+                        <select id="tareaRealizar" required>
+                            <option value="" disabled selected>Selecciona la operación...</option>
+                            <option value="Corte">✂️ Corte</option>
+                            <option value="Plegado">📐 Plegado</option>
+                            <option value="Soldadura">🔥 Soldadura</option>
+                            <option value="Mecanizado">⚙️ Mecanizado</option>
+                            <option value="Pintura">🎨 Pintura</option>
+                            <option value="Ensamble">📦 Ensamble</option>
+                        </select>
+                    </label>
                     <label>Asignar a Operario
                         <select id="asignadoA" required>
                             <option value="" disabled selected>Selecciona un operario...</option>
-                            <option value="Fernando Morano">Fernando Morano</option>
-                            <option value="David Díaz">David Díaz</option>
-                            <option value="Jorge Quinteros">Jorge Quinteros</option>
-                            <option value="Gerardo Barbero">Gerardo Barbero</option>
-                            <option value="Sebastián Díaz">Sebastián Díaz</option>
-                            <option value="Mariano Ramírez">Mariano Ramírez</option>
-                            <option value="Gustavo Fernández">Gustavo Fernández</option>
-                            <option value="Enzo Ficarra">Enzo Ficarra</option>
-                            
+<option value="Fernando Morano">Fernando Morano</option>
+<option value="David Díaz">David Díaz</option>
+<option value="Jorge Quinteros">Jorge Quinteros</option>
+<option value="Gerardo Barbero">Gerardo Barbero</option>
+<option value="Sebastián Díaz">Sebastián Díaz</option>
+<option value="Mariano Ramírez">Mariano Ramírez</option>
+<option value="Gustavo Fernández">Gustavo Fernández</option>
+<option value="Enzo Ficarra">Enzo Ficarra</option>
                         </select>
                     </label>
                 </div>
@@ -131,7 +143,7 @@
                     <thead>
                         <tr>
                             <th>Cliente</th>
-                            <th>Producto</th>
+                            <th>Producto / Tarea</th>
                             <th>Cantidad</th>
                             <th>Plazo / Entrega</th>
                             <th id="columnaOperarioActivas">Operario Asignado</th>
@@ -151,7 +163,7 @@
                     <thead>
                         <tr>
                             <th>Cliente</th>
-                            <th>Producto</th>
+                            <th>Producto / Proceso</th>
                             <th>Cantidad</th>
                             <th>Fecha de Entrega</th>
                             <th>Operario</th>
@@ -185,7 +197,6 @@
         let todasLasOrdenes = [];
         let idEditando = null;
         
-        // Variables de sesión de usuario
         let usuarioLogueado = null; 
         let esAdmin = false;
 
@@ -197,7 +208,6 @@
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
 
-            // Comprobar si ya había una sesión guardada en esta tablet/dispositivo
             let sesionGuardada = localStorage.getItem("usuarioTaller");
             if (sesionGuardada) {
                 usuarioLogueado = sesionGuardada;
@@ -209,7 +219,6 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        // --- SISTEMA DE LOGUEO ---
         function iniciarSesion(usuario) {
             if (usuario === "admin") {
                 let pin = prompt("Introduce el PIN de Administrador (Por defecto: 1234):");
@@ -248,12 +257,10 @@
             document.getElementById("pantallaPrincipal").style.display = "block";
             document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Administrador" : `🛠️ ${usuarioLogueado}`;
 
-            // Ajustar visualización del formulario por rol
             document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
             document.getElementById("columnaAccionesHistorial").style.display = esAdmin ? "table-cell" : "none";
             document.getElementById("columnaOperarioActivas").style.display = esAdmin ? "table-cell" : "none";
 
-            // Escucha en tiempo real de Firebase
             db.collection("ordenes").onSnapshot((snapshot) => {
                 todasLasOrdenes = [];
                 snapshot.forEach((doc) => {
@@ -271,6 +278,7 @@
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             let asignadoA = document.getElementById("asignadoA").value;
+            let tarea = document.getElementById("tareaRealizar").value; // Captura la tarea
             
             let estadoOrden = idEditando ? todasLasOrdenes.find(o => o.id === idEditando).estado : "Pendiente";
 
@@ -280,6 +288,7 @@
                 cantidad: parseInt(cantidad),
                 fecha: fecha,
                 asignadoA: asignadoA,
+                tarea: tarea, // Guarda en Firebase
                 estado: estadoOrden
             };
             
@@ -323,6 +332,7 @@
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("fecha").value = orden.fecha;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
+                document.getElementById("tareaRealizar").value = orden.tarea || ""; // Carga la tarea en edición
                 
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
@@ -339,6 +349,7 @@
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
+                document.getElementById("tareaRealizar").value = orden.tarea || ""; // Clona la tarea
                 document.getElementById("fecha").value = "";
                 
                 idEditando = null;
@@ -357,8 +368,6 @@
 
             let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
 
-            // --- FILTRADO CRÍTICO POR USER ---
-            // Si es admin ve todo, si es operario solo lo asignado a su nombre
             let ordenesFiltradas = todasLasOrdenes.filter(orden => {
                 let coincideBusqueda = orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda);
                 if (esAdmin) {
@@ -430,10 +439,13 @@
                         `;
                     }
 
+                    // Se inyecta la tarea abajo del nombre del producto
+                    let textoTarea = orden.tarea ? `<br><small style="background-color: #2d3d4f; padding: 2px 6px; border-radius: 4px; color: #cbd5e1; font-size: 0.75rem; font-weight: bold;">🛠️ ${orden.tarea}</small>` : "";
+
                     tablaActivasHTML.innerHTML += `
                         <tr>
                             <td><strong>${orden.cliente}</strong></td>
-                            <td>${orden.producto}</td>
+                            <td>${orden.producto} ${textoTarea}</td>
                             <td><mark>${orden.cantidad} uds</mark></td>
                             <td>
                                 ${celdaAlertaFecha}
@@ -460,10 +472,12 @@
                                 </div>
                             </td>` : "";
 
+                    let textoTareaHistorial = orden.tarea ? `<br><small style="color: gray; font-size: 0.75rem;">Proceso: ${orden.tarea}</small>` : "";
+
                     tablaHistorialHTML.innerHTML = `
                         <tr>
                             <td><del>${orden.cliente}</del></td>
-                            <td>${orden.producto}</td>
+                            <td>${orden.producto} ${textoTareaHistorial}</td>
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
                             <td><strong>${orden.asignadoA || '---'}</strong></td>
