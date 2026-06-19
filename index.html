@@ -174,6 +174,8 @@
             } else {
                 db.collection("ordenes").add(datosOrden)
                 .then(() => {
+                    document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
+                    document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción";
                     document.getElementById("formularioOrden").reset();
                 })
                 .catch((error) => alert("No se pudo guardar en la nube: " + error.message));
@@ -209,6 +211,28 @@
             }
         }
 
+        // --- FUNCIÓN NUEVA: CLONACIÓN / REPETIR ORDEN ---
+        function clonarOrden(id) {
+            let orden = todasLasOrdenes.find(o => o.id === id);
+            if (orden) {
+                // Copia los datos principales al formulario
+                document.getElementById("cliente").value = orden.cliente;
+                document.getElementById("producto").value = orden.producto;
+                document.getElementById("cantidad").value = orden.cantidad;
+                
+                // IMPORTANTE: Dejamos la fecha vacía para obligar a elegir el nuevo plazo
+                document.getElementById("fecha").value = "";
+                
+                // Nos aseguramos de que actúe como una NUEVA orden y no como edición
+                idEditando = null;
+                document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
+                document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Clonada 🔄)";
+                
+                // Scroll suave hacia el formulario arriba
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
         function mostrarTablas() {
             let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
             let tablaHistorialHTML = document.getElementById("tablaHistorial");
@@ -225,18 +249,18 @@
             let tieneActivas = false;
             let tieneHistorial = false;
 
-            // Obtener fecha de HOY a medianoche local para comparar limpiamente
             const hoy = new Date();
             hoy.setHours(0,0,0,0);
 
             ordenesFiltradas.forEach((orden) => {
+                // ESTILOS DE LOS BOTONES DE ACCIÓN
                 let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
+                let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
 
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
                     tieneActivas = true;
                     
-                    // --- LÓGICA DEL SEMÁFORO DE ENTREGAS ---
                     let celdaAlertaFecha = "";
                     if (orden.fecha) {
                         const fechaEntrega = new Date(orden.fecha + 'T00:00:00');
@@ -244,22 +268,17 @@
                         const difDias = Math.floor(difTiempo / (1000 * 60 * 60 * 24));
 
                         if (difDias < 0) {
-                            // Demorado
                             celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #721c24; color: #f8d7da;">🔴 Atrasado (${Math.abs(difDias)}d)</span>`;
                         } else if (difDias === 0) {
-                            // Entrega hoy (parpadeante)
                             celdaAlertaFecha = `<span class="badge-fecha alerta-hoy">🚨 ENTREGA HOY</span>`;
                         } else if (difDias <= 3) {
-                            // Plazo crítico (1 a 3 días)
                             celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #b58900; color: white;">🟡 Quedan ${difDias}d</span>`;
                         } else {
-                            // Seguro (Más de 3 días)
                             celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #2aa198; color: white;">🟢 Faltan ${difDias}d</span>`;
                         }
                     } else {
                         celdaAlertaFecha = `<span style="color: gray;">Sin fecha</span>`;
                     }
-                    // ----------------------------------------
 
                     let etiquetaEstado = orden.estado === "Pendiente" ? `<span style="color: #b58900;">🟡 Pendiente</span>` : `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
                     let botonFlujo = orden.estado === "Pendiente" ? 
@@ -279,6 +298,7 @@
                             <td>
                                 <div style="display: flex; align-items: center;">
                                     ${botonFlujo}
+                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar Trabajo">🔄</button>
                                     <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
                                     <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
                                 </div>
@@ -295,7 +315,10 @@
                             <td>${orden.fecha}</td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
                             <td>
-                                <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
+                                <div style="display: flex; align-items: center;">
+                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
+                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
+                                </div>
                             </td>
                         </tr>
                     ` + tablaHistorialHTML.innerHTML;
