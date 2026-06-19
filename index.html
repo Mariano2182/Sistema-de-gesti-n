@@ -8,6 +8,27 @@
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        @keyframes parpadeoAlerta {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .alerta-hoy {
+            animation: parpadeoAlerta 1.2s infinite ease-in-out;
+            background-color: #d9411e !important;
+            color: white !important;
+        }
+        .badge-fecha {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: inline-block;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+    </style>
 </head>
 <body>
     <main class="container-fluid" style="padding: 20px;">
@@ -51,7 +72,7 @@
                             <th>Cliente</th>
                             <th>Producto</th>
                             <th>Cantidad</th>
-                            <th>Entrega</th>
+                            <th>Plazo / Entrega</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -70,7 +91,7 @@
                             <th>Cliente</th>
                             <th>Producto</th>
                             <th>Cantidad</th>
-                            <th>Fecha Pactada</th>
+                            <th>Fecha de Entrega</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -99,7 +120,7 @@
 
         let db;
         let todasLasOrdenes = [];
-        let idEditando = null; // Guarda el ID de la orden que se está modificando
+        let idEditando = null;
 
         try {
             if (firebaseConfig.apiKey.includes("TU_API_KEY")) {
@@ -131,7 +152,6 @@
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             
-            // Si estamos editando, conservamos su estado actual, si es nueva nace "Pendiente"
             let estadoOrden = idEditando ? todasLasOrdenes.find(o => o.id === idEditando).estado : "Pendiente";
 
             let datosOrden = {
@@ -143,7 +163,6 @@
             };
             
             if (idEditando) {
-                // ACTUALIZAR EN LA NUBE
                 db.collection("ordenes").doc(idEditando).update(datosOrden)
                 .then(() => {
                     idEditando = null;
@@ -153,7 +172,6 @@
                 })
                 .catch((error) => alert("Error al actualizar: " + error.message));
             } else {
-                // CREAR EN LA NUBE
                 db.collection("ordenes").add(datosOrden)
                 .then(() => {
                     document.getElementById("formularioOrden").reset();
@@ -178,18 +196,15 @@
         function editarOrden(id) {
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (orden) {
-                // Cargamos los datos en el formulario
                 document.getElementById("cliente").value = orden.cliente;
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("fecha").value = orden.fecha;
                 
-                // Cambiamos el estado visual del formulario
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
                 document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden de Trabajo";
                 
-                // Auto-scroll hacia arriba para que el usuario vea el formulario listo
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -210,13 +225,42 @@
             let tieneActivas = false;
             let tieneHistorial = false;
 
+            // Obtener fecha de HOY a medianoche local para comparar limpiamente
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+
             ordenesFiltradas.forEach((orden) => {
-                // ESTILOS DE BOTONES PEQUEÑOS EN LÍNEA
                 let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
 
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
                     tieneActivas = true;
+                    
+                    // --- LÓGICA DEL SEMÁFORO DE ENTREGAS ---
+                    let celdaAlertaFecha = "";
+                    if (orden.fecha) {
+                        const fechaEntrega = new Date(orden.fecha + 'T00:00:00');
+                        const difTiempo = fechaEntrega - hoy;
+                        const difDias = Math.floor(difTiempo / (1000 * 60 * 60 * 24));
+
+                        if (difDias < 0) {
+                            // Demorado
+                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #721c24; color: #f8d7da;">🔴 Atrasado (${Math.abs(difDias)}d)</span>`;
+                        } else if (difDias === 0) {
+                            // Entrega hoy (parpadeante)
+                            celdaAlertaFecha = `<span class="badge-fecha alerta-hoy">🚨 ENTREGA HOY</span>`;
+                        } else if (difDias <= 3) {
+                            // Plazo crítico (1 a 3 días)
+                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #b58900; color: white;">🟡 Quedan ${difDias}d</span>`;
+                        } else {
+                            // Seguro (Más de 3 días)
+                            celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #2aa198; color: white;">🟢 Faltan ${difDias}d</span>`;
+                        }
+                    } else {
+                        celdaAlertaFecha = `<span style="color: gray;">Sin fecha</span>`;
+                    }
+                    // ----------------------------------------
+
                     let etiquetaEstado = orden.estado === "Pendiente" ? `<span style="color: #b58900;">🟡 Pendiente</span>` : `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
                     let botonFlujo = orden.estado === "Pendiente" ? 
                         `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>` : 
@@ -227,7 +271,10 @@
                             <td><strong>${orden.cliente}</strong></td>
                             <td>${orden.producto}</td>
                             <td><mark>${orden.cantidad} uds</mark></td>
-                            <td>${orden.fecha}</td>
+                            <td>
+                                ${celdaAlertaFecha}
+                                <br><small style="color: gray; font-size: 0.75rem;">Prog: ${orden.fecha}</small>
+                            </td>
                             <td>${etiquetaEstado}</td>
                             <td>
                                 <div style="display: flex; align-items: center;">
@@ -263,7 +310,5 @@
             }
         }
     </script>
-</body>
-</html>
 </body>
 </html>
