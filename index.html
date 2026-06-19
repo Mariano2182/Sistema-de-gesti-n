@@ -386,55 +386,48 @@
             }
         }
 
-        // --- ACTUALIZACIÓN DE ESTADOS FLEXIBLE (NOTAS OPCIONALES) ---
-function cambiarEstado(id, nuevoEstado) {
-    if (!db) return;
-    
-    let orden = todasLasOrdenes.find(o => o.id === id);
-    if (!orden) return;
+        // --- ACTUALIZACIÓN DE ESTADOS CON SOLICITUD DE NOTAS ---
+        function cambiarEstado(id, nuevoEstado) {
+            if (!db) return;
+            
+            let orden = todasLasOrdenes.find(o => o.id === id);
+            if (!orden) return;
 
-    let actualizaciones = { estado: nuevoEstado };
-    let ahora = Date.now();
+            let actualizaciones = { estado: nuevoEstado };
+            let ahora = Date.now();
 
-    if (nuevoEstado === "En proceso") {
-        actualizaciones.horaInicio = ahora;
-    } 
-    else if (nuevoEstado === "Pausado") {
-        // Ventana opcional: si le da Cancelar o acepta en blanco, PAUSA IGUAL sin romper nada
-        let motivo = prompt("⏸️ ¿Quieres dejar una nota para esta pausa? (Opcional - Cancelar o dejar vacío si vas al baño/descanso):", orden.notas || "");
-        
-        // Solo actualiza la nota si el operario escribió algo real
-        if (motivo !== null && motivo.trim() !== "") {
-            actualizaciones.notas = motivo.trim();
-        }
+            if (nuevoEstado === "En proceso") {
+                actualizaciones.horaInicio = ahora;
+            } else if (nuevoEstado === "Pausado") {
+                // Interrupción del operario: obligamos a declarar la causa
+                let motivo = prompt("⚠️ Especifica el motivo de la pausa / problema en taller:", orden.notas || "");
+                if (motivo !== null) {
+                    actualizaciones.notas = motivo.trim();
+                } else {
+                    return; // Cancela la acción por completo si el operario cierra el cuadro sin aceptar
+                }
 
-        // Freno del reloj (Pausa el tiempo acumulado de forma segura)
-        if (orden.horaInicio) {
-            let tiempoTrabajado = ahora - orden.horaInicio;
-            actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
-            actualizaciones.horaInicio = null;
-        }
-    } 
-    else if (nuevoEstado === "Terminado") {
-        // Ventana opcional de cierre
-        let notaFinal = prompt("📝 Observaciones o notas finales de cierre (Opcional):", orden.notas || "");
-        
-        if (notaFinal !== null && notaFinal.trim() !== "") {
-            actualizaciones.notas = notaFinal.trim();
-        }
+                if (orden.horaInicio) {
+                    let tiempoTrabajado = ahora - orden.horaInicio;
+                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
+                    actualizaciones.horaInicio = null;
+                }
+            } else if (nuevoEstado === "Terminado") {
+                // Cierre de orden: opcional para reportar detalles finales
+                let notaFinal = prompt("📝 Observaciones o notas finales de cierre (Opcional):", orden.notas || "");
+                if (notaFinal !== null) {
+                    actualizaciones.notas = notaFinal.trim();
+                }
 
-        // Cierre definitivo del reloj
-        if (orden.horaInicio) {
-            let tiempoTrabajado = ahora - orden.horaInicio;
-            actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
-            actualizaciones.horaInicio = null;
-        }
-    }
+                if (orden.horaInicio) {
+                    let tiempoTrabajado = ahora - orden.horaInicio;
+                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
+                    actualizaciones.horaInicio = null;
+                }
+            }
 
-    // Guarda los cambios en Firebase (el estado cambia SÍ O SÍ)
-    db.collection("ordenes").doc(id).update(actualizaciones)
-    .catch((error) => alert("No se pudo actualizar el estado: " + error.message));
-}
+            db.collection("ordenes").doc(id).update(actualizaciones)
+            .catch((error) => alert("No se pudo actualizar el estado: " + error.message));
         }
 
         function eliminarOrden(id) {
