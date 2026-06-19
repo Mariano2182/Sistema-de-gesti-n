@@ -59,7 +59,7 @@
         <p style="color: gray;">Selecciona tu usuario para ingresar al taller</p>
         <hr>
         <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina</button>
-<button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
 <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
 <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
 <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
@@ -162,7 +162,7 @@
                     <label>Asignar a Operario
                         <select id="asignadoA" required>
                             <option value="" disabled selected>Selecciona un operario...</option>
-<option value="Fernando Morano">Fernando Morano</option>
+                            <option value="Fernando Morano">Fernando Morano</option>
 <option value="David Díaz">David Díaz</option>
 <option value="Jorge Quinteros">Jorge Quinteros</option>
 <option value="Gerardo Barbero">Gerardo Barbero</option>
@@ -192,8 +192,8 @@
                             <th>Producto / Tarea</th>
                             <th>Cantidad</th>
                             <th>Plazo / Entrega</th>
-                            <th id="columnaOperarioActivas">Operario Asignado</th>
-                            <th>Estado</th>
+                            <th id="columnaOperarioActivas">Operario</th>
+                            <th>Estado / Tiempo</th>
                             <th>Acciones de Taller</th>
                         </tr>
                     </thead>
@@ -211,9 +211,9 @@
                             <th>Cliente</th>
                             <th>Producto / Proceso</th>
                             <th>Cantidad</th>
-                            <th>Fecha de Entrega</th>
+                            <th>Fecha</th>
                             <th>Operario</th>
-                            <th>Estado</th>
+                            <th>Estado / Tiempo</th>
                             <th id="columnaAccionesHistorial">Acciones</th>
                         </tr>
                     </thead>
@@ -263,6 +263,17 @@
 
         } catch (e) {
             alert("Error crítico de inicialización: " + e.message);
+        }
+
+        // --- FUNCIONES DE TIEMPO ---
+        function formatoTiempo(milisegundos) {
+            if (!milisegundos || milisegundos <= 0) return "0m";
+            let totalMinutos = Math.floor(milisegundos / 60000);
+            let horas = Math.floor(totalMinutos / 60);
+            let minutos = totalMinutos % 60;
+            
+            if (horas > 0) return `${horas}h ${minutos}m`;
+            return `${minutos}m`;
         }
 
         function iniciarSesion(usuario) {
@@ -324,18 +335,21 @@
             let cantidad = document.getElementById("cantidad").value;
             let fecha = document.getElementById("fecha").value;
             let asignadoA = document.getElementById("asignadoA").value;
-            let tarea = document.getElementById("tareaRealizar").value; // Captura la tarea
+            let tarea = document.getElementById("tareaRealizar").value;
             
-            let estadoOrden = idEditando ? todasLasOrdenes.find(o => o.id === idEditando).estado : "Pendiente";
-
+            let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
+            
             let datosOrden = {
                 cliente: cliente,
                 producto: producto,
                 cantidad: parseInt(cantidad),
                 fecha: fecha,
                 asignadoA: asignadoA,
-                tarea: tarea, // Guarda en Firebase
-                estado: estadoOrden
+                tarea: tarea,
+                estado: ordenAnterior ? ordenAnterior.estado : "Pendiente",
+                // Conservamos los tiempos si es edición, si es nueva van en 0
+                tiempoAcumulado: ordenAnterior ? (ordenAnterior.tiempoAcumulado || 0) : 0,
+                horaInicio: ordenAnterior ? (ordenAnterior.horaInicio || null) : null
             };
             
             if (idEditando) {
@@ -356,9 +370,29 @@
             }
         }
 
+        // --- NUEVA LÓGICA DE TIEMPOS EN EL CAMBIO DE ESTADO ---
         function cambiarEstado(id, nuevoEstado) {
             if (!db) return;
-            db.collection("ordenes").doc(id).update({ estado: nuevoEstado })
+            
+            let orden = todasLasOrdenes.find(o => o.id === id);
+            if (!orden) return;
+
+            let actualizaciones = { estado: nuevoEstado };
+            let ahora = Date.now();
+
+            if (nuevoEstado === "En proceso") {
+                // Al iniciar, guardamos la hora exacta
+                actualizaciones.horaInicio = ahora;
+            } else if (nuevoEstado === "Pausado" || nuevoEstado === "Terminado") {
+                // Al pausar o terminar, calculamos cuánto tiempo pasó
+                if (orden.horaInicio) {
+                    let tiempoTrabajado = ahora - orden.horaInicio;
+                    actualizaciones.tiempoAcumulado = (orden.tiempoAcumulado || 0) + tiempoTrabajado;
+                    actualizaciones.horaInicio = null; // Reseteamos el cronómetro vivo
+                }
+            }
+
+            db.collection("ordenes").doc(id).update(actualizaciones)
             .catch((error) => alert("No se pudo actualizar el estado: " + error.message));
         }
 
@@ -378,7 +412,7 @@
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("fecha").value = orden.fecha;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
-                document.getElementById("tareaRealizar").value = orden.tarea || ""; // Carga la tarea en edición
+                document.getElementById("tareaRealizar").value = orden.tarea || "";
                 
                 idEditando = id;
                 document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
@@ -395,7 +429,7 @@
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
                 document.getElementById("asignadoA").value = orden.asignadoA || "";
-                document.getElementById("tareaRealizar").value = orden.tarea || ""; // Clona la tarea
+                document.getElementById("tareaRealizar").value = orden.tarea || ""; 
                 document.getElementById("fecha").value = "";
                 
                 idEditando = null;
@@ -432,6 +466,15 @@
                 let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
                 let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
+
+                // Renderizado del Tiempo
+                let textoTiempo = "";
+                if (orden.tiempoAcumulado && orden.tiempoAcumulado > 0) {
+                    textoTiempo = `<br><small style="color: #888;">⏱️ ${formatoTiempo(orden.tiempoAcumulado)} neto</small>`;
+                }
+                if (orden.estado === "En proceso") {
+                    textoTiempo += `<br><small style="color: #268bd2;">(⏱️ corriendo...)</small>`;
+                }
 
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso" || orden.estado === "Pausado") {
                     tieneActivas = true;
@@ -485,7 +528,6 @@
                         `;
                     }
 
-                    // Se inyecta la tarea abajo del nombre del producto
                     let textoTarea = orden.tarea ? `<br><small style="background-color: #2d3d4f; padding: 2px 6px; border-radius: 4px; color: #cbd5e1; font-size: 0.75rem; font-weight: bold;">🛠️ ${orden.tarea}</small>` : "";
 
                     tablaActivasHTML.innerHTML += `
@@ -498,7 +540,7 @@
                                 <br><small style="color: gray; font-size: 0.75rem;">Prog: ${orden.fecha}</small>
                             </td>
                             ${celdaOperario}
-                            <td>${etiquetaEstado}</td>
+                            <td>${etiquetaEstado} ${textoTiempo}</td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 3px;">
                                     ${botonFlujo}
@@ -527,7 +569,10 @@
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
                             <td><strong>${orden.asignadoA || '---'}</strong></td>
-                            <td><span style="color: #2aa198;">🟢 Entregado</span></td>
+                            <td>
+                                <span style="color: #2aa198;">🟢 Entregado</span>
+                                ${textoTiempo}
+                            </td>
                             ${celdaAccionesHistorial}
                         </tr>
                     ` + tablaHistorialHTML.innerHTML;
