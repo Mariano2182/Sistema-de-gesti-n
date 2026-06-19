@@ -85,30 +85,34 @@
         // REEMPLAZA LAS LÍNEAS DE ABAJO CON TUS DATOS DE FIREBASE:
         // =========================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
-            authDomain: "sgi-v01.firebaseapp.com",
-            projectId: "SGI-V01",
-            storageBucket: "sgi-v01.firebasestorage.app",
-            messagingSenderId: "393270414199",
-            appId: "1:393270414199:web:c46753d5fbbcb7a033ef72"
-            measurementId: "G-G183P4YRVF"}; InicializarFirebase const app = initializeApp(firebaseConfig);const analytics = getAnalytics(app
+            apiKey: "TU_API_KEY_AQUÍ",
+            authDomain: "TU_AUTH_DOMAIN_AQUÍ",
+            projectId: "TU_PROJECT_ID_AQUÍ",
+            storageBucket: "TU_STORAGE_BUCKET_AQUÍ",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID_AQUÍ",
+            appId: "TU_APP_ID_AQUÍ"
         };
         // =========================================================
 
         // Inicializamos Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        try {
+            firebase.initializeApp(firebaseConfig);
+            var db = firebase.firestore();
+        } catch (e) {
+            alert("Error crítico al conectar las credenciales: " + e.message);
+        }
 
-        // Variable local para guardar lo que viene de la nube
         let todasLasOrdenes = [];
 
-        // ESCUCHA EN TIEMPO REAL: Cada vez que cambie algo en la nube, esto se ejecuta solo
+        // Escucha en tiempo real con detector de errores de conexión
         db.collection("ordenes").onSnapshot((snapshot) => {
             todasLasOrdenes = [];
             snapshot.forEach((doc) => {
                 todasLasOrdenes.push({ id: doc.id, ...doc.data() });
             });
-            mostrarTablas(); // Redibuja la pantalla con los datos nuevos de la nube
+            mostrarTablas();
+        }, (error) => {
+            alert("Error de conexión con la Base de Datos: " + error.message);
         });
 
         function guardarOrden() {
@@ -125,15 +129,21 @@
                 estado: "Pendiente" 
             };
             
-            // Enviamos los datos directamente a la nube de Firebase
-            db.collection("ordenes").add(nuevaOrden);
-            
-            document.getElementById("formularioOrden").reset();
+            // Ahora si falla, te avisa por qué
+            db.collection("ordenes").add(nuevaOrden)
+            .then(() => {
+                document.getElementById("formularioOrden").reset();
+            })
+            .catch((error) => {
+                alert("No se pudo guardar la orden. Motivo: " + error.message);
+            });
         }
 
         function cambiarEstado(id, nuevoEstado) {
-            // Actualiza el documento en la nube usando su ID único
-            db.collection("ordenes").doc(id).update({ estado: nuevoEstado });
+            db.collection("ordenes").doc(id).update({ estado: nuevoEstado })
+            .catch((error) => {
+                alert("No se pudo cambiar el estado: " + error.message);
+            });
         }
 
         function mostrarTablas() {
@@ -145,15 +155,13 @@
 
             let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
 
-            // Filtramos las órdenes según el buscador
             let ordenesFiltradas = todasLasOrdenes.filter(orden => 
-                orden.cliente.toLowerCase().includes(terminoBusqueda)
+                orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda)
             );
 
             let tieneActivas = false;
             let tieneHistorial = false;
 
-            // Separamos y dibujamos las órdenes
             ordenesFiltradas.forEach((orden) => {
                 if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
                     tieneActivas = true;
@@ -182,7 +190,7 @@
                             <td>${orden.fecha}</td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
                         </tr>
-                    ` + tablaHistorialHTML.innerHTML; // Hack para que los nuevos terminados queden arriba
+                    ` + tablaHistorialHTML.innerHTML;
                 }
             });
 
