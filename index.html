@@ -28,14 +28,32 @@
             text-align: center;
             font-size: 0.85rem;
         }
+        /* Ajuste para el encabezado de roles */
+        .header-taller {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <main class="container-fluid" style="padding: 20px;">
-        <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
+        
+        <div class="header-taller">
+            <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
+            <div style="width: auto; min-width: 250px;">
+                <label for="selectorRol" style="font-size: 0.85rem; margin-bottom: 2px; font-weight: bold;">Vista de Pantalla:</label>
+                <select id="selectorRol" onchange="cambiarRol(this.value)" style="margin-bottom: 0; padding: 5px 10px;">
+                    <option value="admin">👔 Modo Administrador</option>
+                    <option value="operario">🛠️ Modo Operario</option>
+                </select>
+            </div>
+        </div>
         <hr>
         
-        <section>
+        <section id="seccionFormulario">
             <h3 id="tituloFormulario">Nueva Orden de Producción</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
                 <div class="grid">
@@ -74,7 +92,7 @@
                             <th>Cantidad</th>
                             <th>Plazo / Entrega</th>
                             <th>Estado</th>
-                            <th>Acciones</th>
+                            <th>Acciones de Taller</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDeOrdenes"></tbody>
@@ -93,7 +111,7 @@
                             <th>Cantidad</th>
                             <th>Fecha de Entrega</th>
                             <th>Estado</th>
-                            <th>Acciones</th>
+                            <th id="columnaAccionesHistorial">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tablaHistorial"></tbody>
@@ -107,20 +125,19 @@
         // ⚠️ PEGA AQUÍ TUS DATOS REALES DESDE LA CONSOLA DE FIREBASE:
         // =========================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
-  authDomain: "sgi-v01.firebaseapp.com",
-  databaseURL: "https://sgi-v01-default-rtdb.firebaseio.com",
-  projectId: "sgi-v01",
-  storageBucket: "sgi-v01.firebasestorage.app",
-  messagingSenderId: "393270414199",
-  appId: "1:393270414199:web:c46753d5fbbcb7a033ef72",
-  measurementId: "G-G183P4YRVF"
+            apiKey: "TU_API_KEY_AQUÍ",
+            authDomain: "TU_AUTH_DOMAIN_AQUÍ",
+            projectId: "TU_PROJECT_ID_AQUÍ",
+            storageBucket: "TU_STORAGE_BUCKET_AQUÍ",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID_AQUÍ",
+            appId: "TU_APP_ID_AQUÍ"
         };
         // =========================================================
 
         let db;
         let todasLasOrdenes = [];
         let idEditando = null;
+        let esAdministrador = true; // Control de rol global
 
         try {
             if (firebaseConfig.apiKey.includes("TU_API_KEY")) {
@@ -129,6 +146,12 @@
             
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
+
+            // Cargar rol guardado en este dispositivo (Para dejar bloqueadas las tablets del taller)
+            let rolGuardado = localStorage.getItem("rolTaller") || "admin";
+            esAdministrador = (rolGuardado === "admin");
+            document.getElementById("selectorRol").value = rolGuardado;
+            actualizarInterfazPorRol();
 
             db.collection("ordenes").onSnapshot((snapshot) => {
                 todasLasOrdenes = [];
@@ -144,8 +167,42 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
+        // --- CONTROL DE SEGURIDAD PARA ROLES ---
+        function cambiarRol(nuevoRol) {
+            if (nuevoRol === "admin") {
+                let pin = prompt("Introduce el PIN de Administrador para desbloquear la edición (Por defecto: 1234):");
+                if (pin === "1234") {
+                    esAdministrador = true;
+                    localStorage.setItem("rolTaller", "admin");
+                } else {
+                    alert("❌ PIN Incorrecto. La pantalla continuará bloqueada en Modo Operario.");
+                    document.getElementById("selectorRol").value = "operario";
+                    esAdministrador = false;
+                }
+            } else {
+                esAdministrador = false;
+                localStorage.setItem("rolTaller", "operario");
+            }
+            actualizarInterfazPorRol();
+        }
+
+        function actualizarInterfazPorRol() {
+            const seccionForm = document.getElementById("seccionFormulario");
+            const colHistorial = document.getElementById("columnaAccionesHistorial");
+            
+            if (esAdministrador) {
+                seccionForm.style.display = "block";
+                if(colHistorial) colHistorial.style.display = "table-cell";
+            } else {
+                seccionForm.style.display = "none";
+                if(colHistorial) colHistorial.style.display = "none";
+                idEditando = null;
+            }
+            mostrarTablas();
+        }
+
         function guardarOrden() {
-            if (!db) return alert("No hay conexión con la base de datos.");
+            if (!db || !esAdministrador) return;
             
             let cliente = document.getElementById("cliente").value.trim();
             let producto = document.getElementById("producto").value.trim();
@@ -174,8 +231,6 @@
             } else {
                 db.collection("ordenes").add(datosOrden)
                 .then(() => {
-                    document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
-                    document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción";
                     document.getElementById("formularioOrden").reset();
                 })
                 .catch((error) => alert("No se pudo guardar en la nube: " + error.message));
@@ -189,6 +244,7 @@
         }
 
         function eliminarOrden(id) {
+            if (!esAdministrador) return;
             if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden de forma permanente de la nube?")) {
                 db.collection("ordenes").doc(id).delete()
                 .catch((error) => alert("No se pudo eliminar: " + error.message));
@@ -196,6 +252,7 @@
         }
 
         function editarOrden(id) {
+            if (!esAdministrador) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (orden) {
                 document.getElementById("cliente").value = orden.cliente;
@@ -211,24 +268,19 @@
             }
         }
 
-        // --- FUNCIÓN NUEVA: CLONACIÓN / REPETIR ORDEN ---
         function clonarOrden(id) {
+            if (!esAdministrador) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (orden) {
-                // Copia los datos principales al formulario
                 document.getElementById("cliente").value = orden.cliente;
                 document.getElementById("producto").value = orden.producto;
                 document.getElementById("cantidad").value = orden.cantidad;
-                
-                // IMPORTANTE: Dejamos la fecha vacía para obligar a elegir el nuevo plazo
                 document.getElementById("fecha").value = "";
                 
-                // Nos aseguramos de que actúe como una NUEVA orden y no como edición
                 idEditando = null;
                 document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
                 document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Clonada 🔄)";
                 
-                // Scroll suave hacia el formulario arriba
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -253,12 +305,11 @@
             hoy.setHours(0,0,0,0);
 
             ordenesFiltradas.forEach((orden) => {
-                // ESTILOS DE LOS BOTONES DE ACCIÓN
                 let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
                 let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
                 let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
 
-                if (orden.estado === "Pendiente" || orden.estado === "En proceso") {
+                if (orden.estado === "Pendiente" || orden.estado === "En proceso" || orden.estado === "Pausado") {
                     tieneActivas = true;
                     
                     let celdaAlertaFecha = "";
@@ -280,10 +331,36 @@
                         celdaAlertaFecha = `<span style="color: gray;">Sin fecha</span>`;
                     }
 
-                    let etiquetaEstado = orden.estado === "Pendiente" ? `<span style="color: #b58900;">🟡 Pendiente</span>` : `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
-                    let botonFlujo = orden.estado === "Pendiente" ? 
-                        `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>` : 
-                        `<button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>`;
+                    // --- NUEVA LÓGICA DE BOTONES DE FLUJO (INICIAR / PAUSAR / REANUDAR / TERMINAR) ---
+                    let etiquetaEstado = "";
+                    let botonFlujo = "";
+
+                    if (orden.estado === "Pendiente") {
+                        etiquetaEstado = `<span style="color: #b58900;">🟡 Pendiente</span>`;
+                        botonFlujo = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar</button>`;
+                    } else if (orden.estado === "En proceso") {
+                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En proceso</span>`;
+                        botonFlujo = `
+                            <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px; border-color: #cb4b16; color: #cb4b16;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸ Pausar</button>
+                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>
+                        `;
+                    } else if (orden.estado === "Pausado") {
+                        etiquetaEstado = `<span style="color: #cb4b16; font-weight: bold;">🟠 Pausado</span>`;
+                        botonFlujo = `
+                            <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Reanudar</button>
+                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar</button>
+                        `;
+                    }
+
+                    // Solo inyectamos botones de gestión si es administrador
+                    let botonesGestionAdmin = "";
+                    if (esAdministrador) {
+                        botonesGestionAdmin = `
+                            <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar Trabajo">🔄</button>
+                            <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
+                            <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
+                        `;
+                    }
 
                     tablaActivasHTML.innerHTML += `
                         <tr>
@@ -296,17 +373,27 @@
                             </td>
                             <td>${etiquetaEstado}</td>
                             <td>
-                                <div style="display: flex; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 3px;">
                                     ${botonFlujo}
-                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Clonar Trabajo">🔄</button>
-                                    <button class="outline" style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')" title="Editar">✏️</button>
-                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar">🗑️</button>
+                                    ${botonesGestionAdmin}
                                 </div>
                             </td>
                         </tr>
                     `;
                 } else if (orden.estado === "Terminado") {
                     tieneHistorial = true;
+                    
+                    let celdaAccionesHistorial = "";
+                    if (esAdministrador) {
+                        celdaAccionesHistorial = `
+                            <td>
+                                <div style="display: flex; align-items: center;">
+                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
+                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
+                                </div>
+                            </td>`;
+                    }
+
                     tablaHistorialHTML.innerHTML = `
                         <tr>
                             <td><del>${orden.cliente}</del></td>
@@ -314,12 +401,7 @@
                             <td>${orden.cantidad} uds</td>
                             <td>${orden.fecha}</td>
                             <td><span style="color: #2aa198;">🟢 Entregado</span></td>
-                            <td>
-                                <div style="display: flex; align-items: center;">
-                                    <button class="outline" style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')" title="Repetir este Trabajo">🔄</button>
-                                    <button class="outline" style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')" title="Eliminar del historial">🗑️</button>
-                                </div>
-                            </td>
+                            ${celdaAccionesHistorial}
                         </tr>
                     ` + tablaHistorialHTML.innerHTML;
                 }
@@ -329,7 +411,8 @@
                 tablaActivasHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay órdenes activas.</td></tr>`;
             }
             if (!tieneHistorial) {
-                tablaHistorialHTML.innerHTML = `<tr><td colspan="6" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
+                let columnasHistorial = esAdministrador ? 6 : 5;
+                tablaHistorialHTML.innerHTML = `<tr><td colspan="${columnasHistorial}" style="text-align: center; color: gray;">No hay trabajos en el historial.</td></tr>`;
             }
         }
     </script>
