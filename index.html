@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de mi Taller - Hoja de Ruta Digital</title>
+    <title>VENG - Sistema de Hoja de Ruta Digital</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
+        :root {
+            --primary: #268bd2;
+        }
         @keyframes parpadeoAlerta {
             0% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(0.98); }
@@ -59,36 +62,46 @@
             border-radius: 0 6px 6px 0;
             font-size: 0.8rem;
         }
-        .bloque-nota.terminado {
-            border-left-color: #2aa198;
-            background-color: #1a242f;
-        }
-        /* Estilos de la Hoja de Ruta Visual */
         .contenedor-ruta-visual {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
+            flex-direction: column;
+            gap: 6px;
             margin-top: 8px;
             font-size: 0.8rem;
         }
-        .paso-badge {
+        .paso-card-visual {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        .paso-card-visual.en-proceso { border-left: 5px solid #268bd2; background-color: #14253d; }
+        .paso-card-visual.pausado { border-left: 5px solid #cb4b16; }
+        .paso-card-visual.terminado { border-left: 5px solid #2aa198; opacity: 0.7; }
+        .paso-card-visual.pendiente { border-left: 5px solid #64748b; }
+
+        .instrumentos-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+            background: #0f172a;
             padding: 4px 8px;
             border-radius: 4px;
-            background-color: #2d3d4f;
-            color: #cbd5e1;
-            border: 1px solid #41556c;
         }
-        .paso-badge.pendiente { border-left: 4px solid #b58900; }
-        .paso-badge.en-proceso { border-left: 4px solid #268bd2; font-weight: bold; background-color: #1e293b; }
-        .paso-badge.pausado { border-left: 4px solid #cb4b16; }
-        .paso-badge.terminado { border-left: 4px solid #2aa198; opacity: 0.6; background-color: #141e26; }
-        
+        .instrumento-tag {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .instrumento-tag.checked {
+            color: #38bdf8;
+            font-weight: bold;
+        }
         .fila-paso-form {
             background: #141e26;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 8px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
             border-left: 4px solid #268bd2;
         }
     </style>
@@ -96,73 +109,110 @@
 <body>
 
     <div id="pantallaLogin">
-        <h2>🏭 Control de Planta</h2>
-        <p style="color: gray;">Selecciona tu usuario para ingresar al taller</p>
+        <h2>🚀 VENG - Control de Planta</h2>
+        <p style="color: gray;">Selecciona tu usuario para ingresar al sistema</p>
         <hr>
-        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Operario: Fernando Morano</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ Operario: David Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Operario: Jorge Quinteros</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Operario: Gerardo Barbero</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Operario: Sebastián Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Operario: Mariano Ramírez</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Operario: Gustavo Fernández</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Operario: Enzo Ficarra</button>
+        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnica</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Fernando Morano</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ David Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Jorge Quinteros</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Gerardo Barbero</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Sebastián Díaz</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Mariano Ramírez</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Gustavo Fernández</button>
+        <button class="btn-usuario secondary" onclick="iniciarSesion('Enzo Ficarra')">🛠️ Enzo Ficarra</button>
     </div>
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
         <div class="header-taller">
             <div>
-                <h1>⚙️ Panel de Control del Taller (Nube ☁️)</h1>
+                <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
             </div>
             <div>
-                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;">🚪 Salir / Cambiar Turno</button>
+                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;"></div>
             </div>
         </div>
         <hr>
         
         <section id="seccionFormulario">
-            <h3 id="tituloFormulario">Nueva Orden con Hoja de Ruta</h3>
+            <h3 id="tituloFormulario">Nueva Hoja de Ruta - Oficina Técnica</h3>
             <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
+                
                 <div class="grid">
-                    <label>Cliente
-                        <input type="text" id="cliente" placeholder="Ej: Juan Pérez" required>
+                    <label>OT (Orden de Trabajo)
+                        <input type="text" id="ot" placeholder="Ej: 1014" required>
                     </label>
-                    <label>Producto a Fabricar
-                        <input type="text" id="producto" placeholder="Ej: Engranaje 10mm" required>
+                    <label>POS (Posición)
+                        <input type="text" id="pos" placeholder="Ej: 001" required>
+                    </label>
+                    <label>Nº Plano / Parte
+                        <input type="text" id="nPlano" placeholder="Ej: s/n o Código de plano" required>
                     </label>
                 </div>
+
+                <div class="grid">
+                    <label>Solicitante / Cliente
+                        <input type="text" id="cliente" placeholder="Ej: Bianchi Carlos Roberto" required>
+                    </label>
+                    <label>Proyecto
+                        <input type="text" id="proyecto" placeholder="Ej: Corrección cabezal / N/A" required>
+                    </label>
+                    <label>Área
+                        <input type="text" id="area" placeholder="Ej: Comercial / Manufactura" required>
+                    </label>
+                </div>
+
+                <div class="grid">
+                    <label>Denominación de la Pieza
+                        <input type="text" id="producto" placeholder="Ej: Eje motriz" required>
+                    </label>
+                    <label>Material (Calidad)
+                        <input type="text" id="material" placeholder="Ej: Fundición / SAE 4140" required>
+                    </label>
+                    <label>Nivel CAL
+                        <input type="text" id="nivelCal" placeholder="Ej: OT Man.">
+                    </label>
+                </div>
+
                 <div class="grid">
                     <label>Cantidad
-                        <input type="number" id="cantidad" placeholder="0" min="1" required>
+                        <input type="number" id="cantidad" placeholder="1" min="1" required>
                     </label>
-                    <label>Fecha de Entrega
+                    <label>Fecha Límite de Entrega
                         <input type="date" id="fecha" required>
                     </label>
                 </div>
 
                 <div style="background-color: #1a242f; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4 style="margin: 0; color: #268bd2;">📋 Secuencia de la Hoja de Ruta</h4>
-                        <button type="button" class="button" style="width: auto; padding: 4px 12px; margin:0;" onclick="agregarFilaPaso()">➕ Agregar Paso</button>
+                        <h4 style="margin: 0; color: #268bd2;">📋 Secuencia Operacional (Ruta)</h4>
+                        <button type="button" class="button" style="width: auto; padding: 4px 12px; margin:0;" onclick="agregarFilaPaso()">➕ Agregar Operación</button>
                     </div>
                     <div id="contenedorPasosForm"></div>
                 </div>
 
                 <div class="grid">
-                    <label>Notas / Instrucciones Iniciales de Oficina
-                        <input type="text" id="notas" placeholder="Ej: Controlar tolerancias críticas según plano...">
+                    <label>Observaciones Iniciales
+                        <input type="text" id="notas" placeholder="Escribir aquí instrucciones generales para la planta...">
                     </label>
                 </div>
-                <button type="submit" id="btnFormulario" style="margin-top: 15px;">Crear Orden de Trabajo</button>
+                <button type="submit" id="btnFormulario" style="margin-top: 15px;">Emitir Hoja de Ruta</button>
             </form>
         </section>
 
         <section style="margin-top: 30px; margin-bottom: 30px; background-color: #1a242f; padding: 15px; border-radius: 8px;">
-            <label for="buscadorCliente" style="font-weight: bold; margin-bottom: 5px; display: block;">🔍 Filtrar por Cliente:</label>
-            <input type="search" id="buscadorCliente" placeholder="Escribe el nombre del cliente para filtrar..." oninput="mostrarTablas()">
+            <div class="grid" style="margin-bottom: 0;">
+                <div>
+                    <label for="buscadorCliente" style="font-weight: bold;">🔍 Filtrar por Cliente/Solicitante:</label>
+                    <input type="search" id="buscadorCliente" placeholder="Escribe para buscar..." oninput="mostrarTablas()">
+                </div>
+                <div>
+                    <label for="buscadorOT" style="font-weight: bold;">🔢 Filtrar por OT:</label>
+                    <input type="search" id="buscadorOT" placeholder="Buscar por número de OT..." oninput="mostrarTablas()">
+                </div>
+            </div>
         </section>
 
         <section>
@@ -171,13 +221,13 @@
                 <table role="grid">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
-                            <th>Producto / Hoja de Ruta Digital</th>
-                            <th>Cantidad</th>
-                            <th>Plazo / Entrega</th>
-                            <th id="columnaOperarioActivas">Operario Actual</th>
-                            <th>Estado de Tarea</th>
-                            <th>Acciones de Taller</th>
+                            <th style="width: 100px;">OT / POS</th>
+                            <th style="width: 180px;">Cliente / Plano</th>
+                            <th>Denominación de Pieza y Hoja de Ruta Activa</th>
+                            <th style="width: 80px;">Cant.</th>
+                            <th style="width: 140px;">Plazo Entrega</th>
+                            <th style="width: 150px;">Estado Actual</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDeOrdenes"></tbody>
@@ -186,17 +236,17 @@
         </section>
 
         <section style="margin-top: 50px;">
-            <h3>📦 Historial de Trabajos Entregados</h3>
+            <h3>📦 Historial de Trabajos Finalizados (Entregados)</h3>
             <figure>
                 <table role="grid" style="background-color: #141e26;">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
-                            <th>Producto / Ruta Realizada</th>
-                            <th>Cantidad</th>
-                            <th>Fecha</th>
-                            <th>Operario Cierre</th>
-                            <th>Estado / Tiempo Total</th>
+                            <th>OT / POS</th>
+                            <th>Cliente / Plano</th>
+                            <th>Denominación de Pieza / Ruta Ejecutada</th>
+                            <th>Cant.</th>
+                            <th>Fecha Fin</th>
+                            <th>Tiempos Totales</th>
                             <th id="columnaAccionesHistorial">Acciones</th>
                         </tr>
                     </thead>
@@ -218,8 +268,9 @@
             measurementId: "G-G183P4YRVF"
         };
 
-        const LISTA_TAREAS = ["Corte Material", "CAD", "CAM", "Hoja de Proceso", "Torneado Desbaste", "Frenteado", "Fresado", "Perforado", "Roscado", "Perforado-Roscado", "Grabado", "Tronzado", "Avellanado", "Corte por Hilo", "Electro Erosión", "Rectificado", "Tratamiento Térmico", "Cromado", "DMD", "Escareado", "Soldadura", "Blastinado", "Corte Laser CO2", "Integración", "Inspección Visual", "Control Dimensional", "FIT Check", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Preventivo Mensual", "Preventivo Semestral", "Preventivo Trimestral", "Preventivo Anual", "Mecanizado de Dispositivo", "Rolado", "Materiales", "Herramientas", "Materiales y Herramientas", "Hoja de Ruta", "Retrabajo", "Medición pie de Máquina", "Rebarbado", "Niquelado", "Zincado", "Torneado de Terminación", "Medición de Dureza", "Ingeniería", "CAD-CAM", "Corte", "Materia Prima", "Planeado", "Torneado"];
+        const LISTA_TAREAS = ["Corte Material", "CAD", "CAM", "Hoja de Proceso", "Torneado Desbaste", "Torneado de Terminación", "Frenteado", "Fresado", "Perforado", "Roscado", "Perforado-Roscado", "Grabado", "Tronzado", "Avellanado", "Corte por Hilo", "Electro Erosión", "Rectificado", "Tratamiento Térmico", "Cromado", "DMD", "Escareado", "Soldadura", "Blastinado", "Corte Laser CO2", "Integración", "Inspección Visual", "Control Dimensional", "FIT Check", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Mecanizado de Dispositivo", "Rolado", "Materiales", "Herramientas", "Retrabajo", "Medición pie de Máquina", "Rebarbado", "Niquelado", "Zincado", "Medición de Dureza", "Ingeniería", "CAD-CAM", "Planeado", "Torneado"];
         const LISTA_OPERARIOS = ["Fernando Morano", "David Díaz", "Jorge Quinteros", "Gerardo Barbero", "Sebastián Díaz", "Mariano Ramírez", "Gustavo Fernández", "Enzo Ficarra"];
+        const INSTRUMENTOS_MEDICION = ["ME-01131", "ME-01119", "ME-01147", "ME-1241", "ME-01078", "ME-00541"];
 
         let db;
         let todasLasOrdenes = [];
@@ -241,38 +292,57 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        function agregarFilaPaso(tareaPrevia = "", operarioPrevio = "") {
+        function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
             const contenedor = document.getElementById("contenedorPasosForm");
             const totalFilas = contenedor.children.length;
+            const opSugerida = opPrev || (totalFilas + 1) * 10;
             
-            let opcionesTareas = `<option value="" disabled ${tareaPrevia ? '' : 'selected'}>Selecciona la operación...</option>`;
-            LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrevia ? 'selected' : ''}>${t}</option>`);
+            let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
+            LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
 
-            let opcionesOperarios = `<option value="" disabled ${operarioPrevio ? '' : 'selected'}>Selecciona un operario...</option>`;
-            LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrevio ? 'selected' : ''}>${o}</option>`);
+            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona el operario...</option>`;
+            LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrev ? 'selected' : ''}>${o}</option>`);
+
+            let checkboxInstrumentosHTML = "";
+            INSTRUMENTOS_MEDICION.forEach(inst => {
+                const checked = instsChecked.includes(inst) ? "checked" : "";
+                checkboxInstrumentosHTML += `
+                    <label style="display:inline-flex; align-items:center; margin-right:10px; font-size:0.75rem;">
+                        <input type="checkbox" class="chk-instrumento" value="${inst}" ${checked} style="margin-right:4px;"> ${inst}
+                    </label>
+                `;
+            });
 
             const divFila = document.createElement("div");
-            divFila.className = "grid fila-paso-form";
+            divFila.className = "fila-paso-form";
             divFila.innerHTML = `
-                <div style="display:flex; align-items:center; font-weight:bold; color:#268bd2;">Paso ${totalFilas + 1}</div>
-                <div>
-                    <select class="select-tarea-ruta" required>${opcionesTareas}</select>
+                <div class="grid" style="margin-bottom:10px;">
+                    <div style="max-width:80px;">
+                        <label>OP</label>
+                        <input type="number" class="input-op-ruta" value="${opSugerida}" required>
+                    </div>
+                    <div>
+                        <label>Máquina / Puesto</label>
+                        <input type="text" class="input-maquina-ruta" value="${maquinaPrev}" placeholder="Ej: ACRA / TAREA MANUAL" required>
+                    </div>
+                    <div>
+                        <label>Operación</label>
+                        <select class="select-tarea-ruta" required>${opcionesTareas}</select>
+                    </div>
+                    <div>
+                        <label>Asignado A</label>
+                        <select class="select-operario-ruta" required>${opcionesOperarios}</select>
+                    </div>
+                    <div style="display:flex; align-items:flex-end; padding-bottom:5px;">
+                        <button type="button" class="outline" style="border-color:#d93526; color:#d93526; margin:0; padding:4px 10px;" onclick="this.parentElement.parentElement.parentElement.remove();">❌ Quitar</button>
+                    </div>
                 </div>
-                <div>
-                    <select class="select-operario-ruta" required>${opcionesOperarios}</select>
-                </div>
-                <div style="display:flex; align-items:center;">
-                    <button type="button" class="outline" style="background-color:transparent; border-color:#d93526; color:#d93526; margin:0; padding:4px 10px;" onclick="this.parentElement.parentElement.remove(); reindexarPasosForm();">❌ Quitar</button>
+                <div style="border-top: 1px dashed #334155; padding-top:8px;">
+                    <strong style="font-size:0.75rem; color:#268bd2; display:block; margin-bottom:4px;">📐 Medición Pie de Máquina (Cotas Generales):</strong>
+                    ${checkboxInstrumentosHTML}
                 </div>
             `;
             contenedor.appendChild(divFila);
-        }
-
-        function reindexarPasosForm() {
-            const contenedor = document.getElementById("contenedorPasosForm");
-            Array.from(contenedor.children).forEach((fila, index) => {
-                fila.children[0].innerText = `Paso ${index + 1}`;
-            });
         }
 
         function formatoTiempo(milisegundos) {
@@ -286,11 +356,11 @@
 
         function iniciarSesion(usuario) {
             if (usuario === "admin") {
-                let pin = prompt("Introduce el PIN de Administrador (Por defecto: 1234):");
+                let pin = prompt("Introduce el PIN de Oficina Técnica:");
                 if (pin === "1234") { usuarioLogueado = "admin"; esAdmin = true; } 
                 else { alert("❌ PIN Incorrecto."); return; }
             } else {
-                let pin = prompt(`Introduce el PIN para ingresar como ${usuario} (Por defecto: 0000):`);
+                let pin = prompt(`Introduce PIN para ${usuario}:`);
                 if (pin === "0000") { usuarioLogueado = usuario; esAdmin = false; } 
                 else { alert("❌ PIN Incorrecto."); return; }
             }
@@ -308,16 +378,15 @@
         function conectarEscuchaFirebase() {
             document.getElementById("pantallaLogin").style.display = "none";
             document.getElementById("pantallaPrincipal").style.display = "block";
-            document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Administrador" : `🛠️ ${usuarioLogueado}`;
+            document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Oficina Técnica (Admin)" : `🛠️ Operario: ${usuarioLogueado}`;
 
             document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
             document.getElementById("columnaAccionesHistorial").style.display = esAdmin ? "table-cell" : "none";
-            document.getElementById("columnaOperarioActivas").style.display = esAdmin ? "table-cell" : "none";
 
             document.getElementById("contenedorPasosForm").innerHTML = "";
             if(esAdmin) agregarFilaPaso();
 
-            db.collection("ordenes").onSnapshot((snapshot) => {
+            db.collection("ordenes_veng").onSnapshot((snapshot) => {
                 todasLasOrdenes = [];
                 snapshot.forEach((doc) => {
                     todasLasOrdenes.push({ id: doc.id, ...doc.data() });
@@ -329,25 +398,30 @@
         function guardarOrden() {
             if (!db || !esAdmin) return;
             
-            let cliente = document.getElementById("cliente").value.trim();
-            let producto = document.getElementById("producto").value.trim();
-            let cantidad = document.getElementById("cantidad").value;
-            let fecha = document.getElementById("fecha").value;
-            let notasInput = document.getElementById("notas").value.trim();
-            
             const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
             if (filasPasos.length === 0) {
-                alert("⚠️ Debes agregar al menos un paso a la Hoja de Ruta.");
+                alert("⚠️ Debes agregar al menos una operación a la Hoja de Ruta.");
                 return;
             }
 
             let pasosArray = [];
-            filasPasos.forEach((fila, idx) => {
+            filasPasos.forEach((fila) => {
+                let opSel = fila.querySelector(".input-op-ruta").value;
+                let maquinaSel = fila.querySelector(".input-maquina-ruta").value.trim();
                 let tareaSel = fila.querySelector(".select-tarea-ruta").value;
                 let operarioSel = fila.querySelector(".select-operario-ruta").value;
+                
+                let instsChecked = [];
+                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => {
+                    instsChecked.push(chk.value);
+                });
+
                 pasosArray.push({
+                    op: parseInt(opSel),
+                    maquina: maquinaSel,
                     tarea: tareaSel,
                     asignadoA: operarioSel,
+                    instrumentos: instsChecked,
                     estado: "Pendiente",
                     tiempoAcumulado: 0,
                     horaInicio: null,
@@ -355,54 +429,52 @@
                 });
             });
 
+            // Ordenamiento por nro de OP secuencial
+            pasosArray.sort((a,b) => a.op - b.op);
+
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
             
             let datosOrden = {
-                cliente: cliente,
-                producto: producto,
-                cantidad: parseInt(cantidad),
-                fecha: fecha,
-                notas: notasInput,
+                ot: document.getElementById("ot").value.trim(),
+                pos: document.getElementById("pos").value.trim(),
+                nPlano: document.getElementById("nPlano").value.trim(),
+                cliente: document.getElementById("cliente").value.trim(),
+                proyecto: document.getElementById("proyecto").value.trim(),
+                area: document.getElementById("area").value.trim(),
+                producto: document.getElementById("producto").value.trim(),
+                material: document.getElementById("material").value.trim(),
+                nivelCal: document.getElementById("nivelCal").value.trim(),
+                cantidad: parseInt(document.getElementById("cantidad").value),
+                fecha: document.getElementById("fecha").value,
+                notas: document.getElementById("notas").value.trim(),
                 pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
                 estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
             
             if (idEditando) {
-                db.collection("ordenes").doc(idEditando).update(datosOrden)
+                db.collection("ordenes_veng").doc(idEditando).update(datosOrden)
                 .then(() => {
                     idEditando = null;
-                    document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
-                    document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción";
+                    document.getElementById("btnFormulario").innerText = "Emitir Hoja de Ruta";
                     document.getElementById("formularioOrden").reset();
                     document.getElementById("contenedorPasosForm").innerHTML = "";
                     agregarFilaPaso();
-                })
-                .catch((error) => alert("Error al actualizar: " + error.message));
+                });
             } else {
-                db.collection("ordenes").add(datosOrden)
+                db.collection("ordenes_veng").add(datosOrden)
                 .then(() => {
                     document.getElementById("formularioOrden").reset();
                     document.getElementById("contenedorPasosForm").innerHTML = "";
                     agregarFilaPaso();
-                })
-                .catch((error) => alert("No se pudo guardar en la nube: " + error.message));
+                });
             }
         }
 
         function cambiarEstado(id, nuevoEstado) {
-            if (!db) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
             if (!orden) return;
 
-            let pasos = orden.pasos || [{
-                tarea: orden.tarea || "Proceso",
-                asignadoA: orden.asignadoA || "Sin asignar",
-                estado: orden.estado || "Pendiente",
-                tiempoAcumulado: orden.tiempoAcumulado || 0,
-                horaInicio: orden.horaInicio || null,
-                notas: orden.notas || ""
-            }];
-
+            let pasos = orden.pasos;
             let idxActivo = pasos.findIndex(p => p.estado !== "Terminado");
             if (idxActivo === -1) idxActivo = pasos.length - 1;
 
@@ -412,102 +484,78 @@
             if (nuevoEstado === "En proceso") {
                 paso.horaInicio = ahora;
                 paso.estado = "En proceso";
-            } 
-            else if (nuevoEstado === "Pausado") {
-                let motivo = prompt("⏸️ ¿Quieres dejar una nota para esta pausa? (Opcional):", paso.notas || "");
-                if (motivo !== null && motivo.trim() !== "") {
-                    paso.notas = motivo.trim();
-                }
+            } else if (nuevoEstado === "Pausado") {
+                let motivo = prompt("Motivo de Pausa / Notas:", paso.notas || "");
+                if (motivo !== null) paso.notas = motivo.trim();
                 if (paso.horaInicio) {
-                    let tiempoTrabajado = ahora - paso.horaInicio;
-                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + tiempoTrabajado;
+                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + (ahora - paso.horaInicio);
                     paso.horaInicio = null;
                 }
                 paso.estado = "Pausado";
-            } 
-            else if (nuevoEstado === "Terminado") {
-                let notaFinal = prompt("📝 Observaciones o notas de cierre de este paso (Opcional):", paso.notas || "");
-                if (notaFinal !== null && notaFinal.trim() !== "") {
-                    paso.notas = notaFinal.trim();
-                }
+            } else if (nuevoEstado === "Terminado") {
+                let notaFinal = prompt("Anotaciones finales de cierre de operación:", paso.notas || "");
+                if (notaFinal !== null) paso.notas = notaFinal.trim();
                 if (paso.horaInicio) {
-                    let tiempoTrabajado = ahora - paso.horaInicio;
-                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + tiempoTrabajado;
+                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + (ahora - paso.horaInicio);
                     paso.horaInicio = null;
                 }
                 paso.estado = "Terminado";
             }
 
-            let ordenEstadoGlobal = "En proceso";
-            if (pasos.every(p => p.estado === "Terminado")) {
-                ordenEstadoGlobal = "Terminado";
-            } else if (pasos.every(p => p.estado === "Pendiente")) {
-                ordenEstadoGlobal = "Pendiente";
-            }
+            let ordenEstadoGlobal = pasos.every(p => p.estado === "Terminado") ? "Terminado" : "En proceso";
 
-            db.collection("ordenes").doc(id).update({
-                pasos: pasos,
-                estado: ordenEstadoGlobal
-            })
-            .catch((error) => alert("No se pudo actualizar el estado de la hoja de ruta: " + error.message));
+            db.collection("ordenes_veng").doc(id).update({ pasos: pasos, estado: ordenEstadoGlobal });
         }
 
-        function eliminarOrden(id) {
-            if (!esAdmin) return;
-            if (confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR esta orden y toda su Hoja de Ruta permanentemente?")) {
-                db.collection("ordenes").doc(id).delete();
+        function marcarInstrumentoMesa(idOrden, idxPaso, instVal, checkStatus) {
+            let orden = todasLasOrdenes.find(o => o.id === idOrden);
+            if (!orden) return;
+            
+            // Inicializar array verificado si no existía por retrocompatibilidad
+            if(!orden.pasos[idxPaso].instrumentosVerificadosTaller) {
+                orden.pasos[idxPaso].instrumentosVerificadosTaller = [];
             }
+            
+            let verificados = orden.pasos[idxPaso].instrumentosVerificadosTaller;
+            if(checkStatus) {
+                if(!verificados.includes(instVal)) verificados.push(instVal);
+            } else {
+                orden.pasos[idxPaso].instrumentosVerificadosTaller = verificados.filter(i => i !== instVal);
+            }
+            
+            db.collection("ordenes_veng").doc(idOrden).update({ pasos: orden.pasos });
         }
 
         function editarOrden(id) {
-            if (!esAdmin) return;
             let orden = todasLasOrdenes.find(o => o.id === id);
-            if (orden) {
-                document.getElementById("cliente").value = orden.cliente;
-                document.getElementById("producto").value = orden.producto;
-                document.getElementById("cantidad").value = orden.cantidad;
-                document.getElementById("fecha").value = orden.fecha;
-                document.getElementById("notas").value = orden.notas || "";
-                
-                document.getElementById("contenedorPasosForm").innerHTML = "";
-                if (orden.pasos && orden.pasos.length > 0) {
-                    orden.pasos.forEach(p => agregarFilaPaso(p.tarea, p.asignadoA));
-                } else {
-                    agregarFilaPaso(orden.tarea, orden.asignadoA);
-                }
-                
-                idEditando = id;
-                document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios Realizados";
-                document.getElementById("tituloFormulario").innerText = "✏️ Editando Orden e Historial de Ruta";
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (!orden) return;
+            document.getElementById("ot").value = orden.ot || "";
+            document.getElementById("pos").value = orden.pos || "";
+            document.getElementById("nPlano").value = orden.nPlano || "";
+            document.getElementById("cliente").value = orden.cliente;
+            document.getElementById("proyecto").value = orden.proyecto || "";
+            document.getElementById("area").value = orden.area || "";
+            document.getElementById("producto").value = orden.producto;
+            document.getElementById("material").value = orden.material || "";
+            document.getElementById("nivelCal").value = orden.nivelCal || "";
+            document.getElementById("cantidad").value = orden.cantidad;
+            document.getElementById("fecha").value = orden.fecha;
+            document.getElementById("notas").value = orden.notas || "";
+            
+            document.getElementById("contenedorPasosForm").innerHTML = "";
+            orden.pasos.forEach(p => agregarFilaPaso(p.op, p.maquina, p.tarea, p.asignadoA, p.instrumentos || []));
+            
+            idEditando = id;
+            document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios en Ruta";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function eliminarOrden(id) {
+            if (confirm("🚨 ¿Eliminar esta Hoja de Ruta de VENG de forma permanente?")) {
+                db.collection("ordenes_veng").doc(id).delete();
             }
         }
 
-        function clonarOrden(id) {
-            if (!esAdmin) return;
-            let orden = todasLasOrdenes.find(o => o.id === id);
-            if (orden) {
-                document.getElementById("cliente").value = orden.cliente;
-                document.getElementById("producto").value = orden.producto;
-                document.getElementById("cantidad").value = orden.cantidad;
-                document.getElementById("notas").value = orden.notas || "";
-                document.getElementById("fecha").value = "";
-                
-                document.getElementById("contenedorPasosForm").innerHTML = "";
-                if (orden.pasos && orden.pasos.length > 0) {
-                    orden.pasos.forEach(p => agregarFilaPaso(p.tarea, p.asignadoA));
-                } else {
-                    agregarFilaPaso(orden.tarea, orden.asignadoA);
-                }
-                
-                idEditando = null;
-                document.getElementById("btnFormulario").innerText = "Crear Orden de Trabajo";
-                document.getElementById("tituloFormulario").innerText = "Nueva Orden de Producción (Ruta Clonada 🔄)";
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
-        // --- RECONSTRUCCIÓN Y COMPLETADO DE LA FUNCIÓN TRUNCADA ---
         function mostrarTablas() {
             let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
             let tablaHistorialHTML = document.getElementById("tablaHistorial");
@@ -515,163 +563,148 @@
             tablaActivasHTML.innerHTML = "";
             tablaHistorialHTML.innerHTML = "";
 
-            let terminoBusqueda = document.getElementById("buscadorCliente").value.toLowerCase();
-            let hoy = new Date();
-            hoy.setHours(0,0,0,0);
+            let busquedaCliente = document.getElementById("buscadorCliente").value.toLowerCase();
+            let busquedaOT = document.getElementById("buscadorOT").value.trim();
+            let hoy = new Date(); hoy.setHours(0,0,0,0);
 
             todasLasOrdenes.forEach((orden) => {
-                let pasos = orden.pasos || [{
-                    tarea: orden.tarea || "Proceso general",
-                    asignadoA: orden.asignadoA || "Sin Asignar",
-                    estado: orden.estado || "Pendiente",
-                    tiempoAcumulado: orden.tiempoAcumulado || 0,
-                    horaInicio: orden.horaInicio || null,
-                    notas: orden.notas || ""
-                }];
-
+                let pasos = orden.pasos || [];
                 let idxPasoActivo = pasos.findIndex(p => p.estado !== "Terminado");
                 let pasoActivo = idxPasoActivo !== -1 ? pasos[idxPasoActivo] : pasos[pasos.length - 1];
 
-                let coincideBusqueda = orden.cliente && orden.cliente.toLowerCase().includes(terminoBusqueda);
-                if (!coincideBusqueda) return;
+                // Filtros combinados
+                if (busquedaCliente && !orden.cliente.toLowerCase().includes(busquedaCliente)) return;
+                if (busquedaOT && orden.ot !== busquedaOT) return;
 
+                // Restricción de vista Operario (Solo ve si tiene la tarea activa asignada)
                 if (!esAdmin && orden.estado !== "Terminado") {
                     if (pasoActivo.asignadoA !== usuarioLogueado) return;
                 }
 
-                let estiloBtnEliminar = `background-color: transparent; border-color: #d93526; color: #d93526; width: auto; margin: 0; padding: 2px 8px; display: inline-block;`;
-                let estiloBtnEditar = `background-color: transparent; border-color: #ffa600; color: #ffa600; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
-                let estiloBtnClonar = `background-color: transparent; border-color: #268bd2; color: #268bd2; width: auto; margin: 0; padding: 2px 8px; display: inline-block; margin-right: 5px;`;
-
+                let tiempoTotalRuta = 0;
                 let htmlRutaVisual = `<div class="contenedor-ruta-visual">`;
-                let tiempoTotalAcumulado = 0;
-
-                pasos.forEach((p, index) => {
-                    tiempoTotalAcumulado += (p.tiempoAcumulado || 0);
-                    let indicadorEstado = "⚪";
-                    let clasePaso = "pendiente";
-                    if (p.estado === "Terminado") { indicadorEstado = "✓"; clasePaso = "terminado"; }
-                    else if (p.estado === "En proceso") { indicadorEstado = "🔵 ⏳"; clasePaso = "en-proceso"; }
-                    else if (p.estado === "Pausado") { indicadorEstado = "⏸️"; clasePaso = "pausado"; }
+                
+                pasos.forEach((p, idx) => {
+                    tiempoTotalRuta += (p.tiempoAcumulado || 0);
+                    let claseE = p.estado.toLowerCase().replace(" ", "-");
+                    let icon = p.estado === "Terminado" ? "✓" : (p.estado === "En proceso" ? "⏳ 🔵" : (p.estado === "Pausado" ? "⏸️" : "⚪"));
+                    
+                    // Render de instrumentos configurados para esta operación
+                    let htmlInstrumentosPaso = "";
+                    if(p.instrumentos && p.instrumentos.length > 0) {
+                        htmlInstrumentosPaso = `<div class="instrumentos-container">`;
+                        p.instrumentos.forEach(ins => {
+                            let verifList = p.instrumentosVerificadosTaller || [];
+                            let IsChecked = verifList.includes(ins);
+                            
+                            if(orden.estado !== "Terminado" && p.estado === "En proceso" && !esAdmin) {
+                                // El operario puede marcar/chequear el instrumento en tiempo real
+                                htmlInstrumentosPaso += `
+                                    <label class="instrumento-tag ${IsChecked?'checked':''}">
+                                        <input type="checkbox" style="margin:0 3px 0 0; width:12px; height:12px;" ${IsChecked?'checked':''} onchange="marcarInstrumentoMesa('${orden.id}', ${idx}, '${ins}', this.checked)"> ${ins}
+                                    </label>
+                                `;
+                            } else {
+                                // Vista estática normal
+                                htmlInstrumentosPaso += `<span class="instrumento-tag ${IsChecked?'checked':''}">⚙️ ${ins}${IsChecked?' (OK)':''}</span>`;
+                            }
+                        });
+                        htmlInstrumentosPaso += `</div>`;
+                    }
 
                     htmlRutaVisual += `
-                        <span class="paso-badge ${clasePaso}">
-                            ${indicadorEstado} ${index+1}. ${p.tarea} (${p.asignadoA.split(' ')[0]})
-                        </span>
-                        ${index < pasos.length - 1 ? '➡️' : ''}
+                        <div class="paso-card-visual ${claseE}">
+                            <strong>OP ${p.op} - Mág: ${p.maquina}</strong> | <span>${p.tarea}</span> 
+                            <span style="float:right; font-weight:bold;">${icon} ${p.asignadoA}</span>
+                            ${htmlInstrumentosPaso}
+                            ${p.notas ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 ${p.notas}</div>`:''}
+                        </div>
                     `;
                 });
                 htmlRutaVisual += `</div>`;
 
-                let htmlNotaActiva = pasoActivo.notas ? `<span class="bloque-nota">💬 <strong>Nota de Ruta:</strong> ${pasoActivo.notas}</span>` : "";
-                if(orden.notas && !pasoActivo.notas) {
-                    htmlNotaActiva = `<span class="bloque-nota" style="border-left-color:#268bd2;">📋 <strong>Oficina:</strong> ${orden.notas}</span>`;
-                }
-
-                let textoTiempo = `<br><small style="color: #888;">⏱️ ${formatoTiempo(pasoActivo.tiempoAcumulado)} en paso</small>`;
-                if (pasoActivo.estado === "En proceso") {
-                    textoTiempo += `<br><small style="color: #268bd2;">(corriendo...)</small>`;
-                }
-
-                // Separación lógicas entre Órdenes Activas e Historial finalizado
                 if (orden.estado !== "Terminado") {
-                    // --- RENDERIZADO DE TABLA ÓRDENES ACTIVAS ---
-                    let celdaAlertaFecha = "";
+                    // --- TABLA ACTIVAS ---
+                    let celdaFecha = "";
                     if (orden.fecha) {
-                        const fechaEntrega = new Date(orden.fecha + 'T00:00:00');
-                        const difDias = Math.floor((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
-                        if (difDias < 0) celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #721c24; color: #f8d7da;">🔴 Atrasado (${Math.abs(difDias)}d)</span>`;
-                        else if (difDias === 0) celdaAlertaFecha = `<span class="badge-fecha alerta-hoy">🚨 ENTREGA HOY</span>`;
-                        else if (difDias <= 3) celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #b58900; color: white;">🟡 Quedan ${difDias}d</span>`;
-                        else celdaAlertaFecha = `<span class="badge-fecha" style="background-color: #2aa198; color: white;">🟢 Faltan ${difDias}d</span>`;
+                        const fEntrega = new Date(orden.fecha + 'T00:00:00');
+                        const dif = Math.floor((fEntrega - hoy) / (1000 * 60 * 60 * 24));
+                        if (dif < 0) celdaFecha = `<span class="badge-fecha" style="background-color: #721c24;">🔴 Retrasado (${Math.abs(dif)}d)</span>`;
+                        else if (dif === 0) celdaFecha = `<span class="badge-fecha alerta-hoy">🚨 HOY</span>`;
+                        else if (dif <= 4) celdaFecha = `<span class="badge-fecha" style="background-color: #b58900;">🟡 ${dif} días</span>`;
+                        else celdaFecha = `<span class="badge-fecha" style="background-color: #2aa198;">🟢 ${dif} días</span>`;
                     }
 
-                    let etiquetaEstado = "";
-                    let botonFlujo = "";
-
+                    let btnAccion = "";
                     if (pasoActivo.estado === "Pendiente") {
-                        etiquetaEstado = `<span style="color: #b58900;">🟡 Esperando</span>`;
-                        botonFlujo = `<button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar Paso</button>`;
+                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar OP ${pasoActivo.op}</button>`;
                     } else if (pasoActivo.estado === "En proceso") {
-                        etiquetaEstado = `<span style="color: #268bd2; font-weight: bold;">🔵 En Proceso</span>`;
-                        botonFlujo = `
-                            <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px; border-color: #cb4b16; color: #cb4b16;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸ Pausar</button>
-                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar Paso</button>
+                        btnAccion = `
+                            <button class="outline" style="padding:2px 8px; margin:0 4px 0 0; border-color:#cb4b16; color:#cb4b16;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸ Pausar</button>
+                            <button class="outline contrast" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Cerrar OP</button>
                         `;
                     } else if (pasoActivo.estado === "Pausado") {
-                        etiquetaEstado = `<span style="color: #cb4b16; font-weight: bold;">🟠 Pausado</span>`;
-                        botonFlujo = `
-                            <button class="outline" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Reanudar</button>
-                            <button class="outline contrast" style="width: auto; margin: 0; padding: 2px 10px; display: inline-block; margin-right: 5px;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Terminar Paso</button>
+                        btnAccion = `
+                            <button class="outline" style="padding:2px 8px; margin:0 4px 0 0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Reanudar</button>
+                            <button class="outline contrast" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Cerrar OP</button>
                         `;
                     }
 
-                    let botonesAdmin = "";
+                    let accionesAdmin = "";
                     if (esAdmin) {
-                        botonesAdmin = `
-                            <button style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')">✏️</button>
-                            <button style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')">🔄</button>
-                            <button style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')">❌</button>
+                        accionesAdmin = `
+                            <button style="background:transparent; border-color:#ffa600; color:#ffa600; padding:2px 6px; margin:0 3px 0 0;" onclick="editarOrden('${orden.id}')">✏️</button>
+                            <button style="background:transparent; border-color:#d93526; color:#d93526; padding:2px 6px; margin:0;" onclick="eliminarOrden('${orden.id}')">❌</button>
                         `;
                     }
 
-                    let filaHTML = `
+                    tablaActivasHTML.innerHTML += `
                         <tr>
-                            <td><strong>${orden.cliente}</strong></td>
+                            <td><strong>OT ${orden.ot || '---'}</strong><br><small style="color:gray;">POS: ${orden.pos || '---'}</small></td>
+                            <td><span style="font-size:0.85rem; font-weight:bold;">${orden.cliente}</span><br><small style="color:#268bd2;">Plano: ${orden.nPlano || 's/n'}</small></td>
                             <td>
-                                <strong>${orden.producto}</strong>
+                                <strong style="color:#e2e8f0; font-size:1.05rem;">${orden.producto}</strong> <small style="color:gray;">(${orden.material || '---'})</small>
                                 ${htmlRutaVisual}
-                                ${htmlNotaActiva}
+                                ${orden.notas ? `<span class="bloque-nota">📝 Obs. OT: ${orden.notas}</span>`:''}
                             </td>
-                            <td>${orden.cantidad}</td>
-                            <td>${celdaAlertaFecha}</td>
-                            <td style="display: ${esAdmin ? 'table-cell' : 'none'};">${pasoActivo.asignadoA}</td>
-                            <td>${etiquetaEstado} ${textoTiempo}</td>
+                            <td><strong>${orden.cantidad}</strong></td>
+                            <td>${celdaFecha}</td>
                             <td>
-                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
-                                    ${botonFlujo}
-                                    ${botonesAdmin}
+                                <span style="font-size:0.85rem; color:#94a3b8;">OP Activa: <strong>${pasoActivo.op}</strong></span><br>
+                                <small style="color:#818cf8;">⏱️ Acumulado: ${formatoTiempo(pasoActivo.tiempoAcumulado)}</small>
+                            </td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:2px;">
+                                    ${btnAccion}
+                                    ${accionesAdmin}
                                 </div>
                             </td>
                         </tr>
                     `;
-                    tablaActivasHTML.innerHTML += filaHTML;
-
                 } else {
-                    // --- RENDERIZADO DE TABLA DE TRABAJOS ENTREGADOS (HISTORIAL) ---
-                    let botonesAdminHistorial = "";
-                    if (esAdmin) {
-                        botonesAdminHistorial = `
-                            <button style="${estiloBtnEditar}" onclick="editarOrden('${orden.id}')">✏️</button>
-                            <button style="${estiloBtnClonar}" onclick="clonarOrden('${orden.id}')">🔄</button>
-                            <button style="${estiloBtnEliminar}" onclick="eliminarOrden('${orden.id}')">❌</button>
-                        `;
-                    }
+                    // --- TABLA HISTORIAL (ENTREGADOS) ---
+                    let accionesAdminHistorial = esAdmin ? `
+                        <button style="background:transparent; border-color:#ffa600; color:#ffa600; padding:2px 6px; margin:0 3px 0 0;" onclick="editarOrden('${orden.id}')">✏️</button>
+                        <button style="background:transparent; border-color:#d93526; color:#d93526; padding:2px 6px; margin:0;" onclick="eliminarOrden('${orden.id}')">❌</button>
+                    ` : '';
 
-                    let operarioCierre = pasos[pasos.length - 1] ? pasos[pasos.length - 1].asignadoA : "Sin datos";
-
-                    let filaHistorialHTML = `
+                    tablaHistorialHTML.innerHTML += `
                         <tr>
-                            <td>${orden.cliente}</td>
+                            <td><strong>OT ${orden.ot || '---'}</strong><br><small>POS: ${orden.pos || '---'}</small></td>
+                            <td><strong>${orden.cliente}</strong><br><small style="color:gray;">Plano: ${orden.nPlano || 's/n'}</small></td>
                             <td>
                                 <strong>${orden.producto}</strong>
                                 ${htmlRutaVisual}
                             </td>
                             <td>${orden.cantidad}</td>
                             <td>${orden.fecha || '---'}</td>
-                            <td>${operarioCierre}</td>
                             <td>
-                                <span style="color: #2aa198; font-weight: bold;">🟢 Entregado</span>
-                                <br><small style="color: #888;">⏱️ Total: ${formatoTiempo(tiempoTotalAcumulado)}</small>
+                                <span style="color:#2aa198; font-weight:bold;">🟢 Cerrado</span><br>
+                                <small style="color:gray;">Tiempo de Proceso: ${formatoTiempo(tiempoTotalRuta)}</small>
                             </td>
-                            <td style="display: ${esAdmin ? 'table-cell' : 'none'};">
-                                <div style="display: flex; align-items: center; gap: 5px;">
-                                    ${botonesAdminHistorial}
-                                </div>
-                            </td>
+                            <td style="display: ${esAdmin ? 'table-cell' : 'none'};">${accionesAdminHistorial}</td>
                         </tr>
                     `;
-                    tablaHistorialHTML.innerHTML += filaHistorialHTML;
                 }
             });
         }
