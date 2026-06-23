@@ -196,7 +196,6 @@
                     </label>
                 </div>
                 
-                <!-- Contenedor de botones del formulario de emisión -->
                 <div style="display: flex; gap: 12px; margin-top: 15px;">
                     <button type="submit" id="btnFormulario" style="margin: 0; flex: 1;">Emitir Hoja de Ruta</button>
                     <button type="button" class="outline contrast" style="margin: 0; width: auto; padding: 0 25px;" onclick="imprimirDesdeFormulario()">🖨️ Imprimir Hoja</button>
@@ -306,7 +305,7 @@
             let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
             LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
 
-            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona el operario...</option>`;
+            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona the operario...</option>`;
             LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrev ? 'selected' : ''}>${o}</option>`);
 
             let checkboxInstrumentosHTML = "";
@@ -387,8 +386,6 @@
             document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Oficina Técnica (Admin)" : `🛠️ Operario: ${usuarioLogueado}`;
 
             document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
-            
-            // Permitimos que la columna de acciones en historial se muestre siempre para que cualquiera pueda imprimir
             document.getElementById("columnaAccionesHistorial").style.display = "table-cell";
 
             document.getElementById("contenedorPasosForm").innerHTML = "";
@@ -433,7 +430,10 @@
                     estado: "Pendiente",
                     tiempoAcumulado: 0,
                     horaInicio: null,
-                    notas: ""
+                    notas: "",
+                    legajo: "",
+                    firmaDigital: "",
+                    fechaFirma: ""
                 });
             });
 
@@ -499,13 +499,32 @@
                 }
                 paso.estado = "Pausado";
             } else if (nuevoEstado === "Terminado") {
-                let notaFinal = prompt("Anotaciones finales de cierre de operación:", paso.notas || "");
+                // --- SECCIÓN DE FIRMA DIGITAL Y LEGAJO OBLIGATORIOS ---
+                let promptLegajo = prompt(`[CIERRE DE OP ${paso.op}] Ingrese su Número de LEGAJO para validar la operación:`);
+                if (promptLegajo === null || promptLegajo.trim() === "") {
+                    alert("❌ Proceso cancelado: El número de legajo es estrictamente obligatorio para cerrar la operación.");
+                    return;
+                }
+
+                let promptFirma = prompt(`[FIRMA DIGITAL] Ingrese su Nombre y Apellido completos como Firma Digital de conformidad:`);
+                if (promptFirma === null || promptFirma.trim() === "") {
+                    alert("❌ Proceso cancelado: La firma digital es obligatoria para certificar la ruta operacional.");
+                    return;
+                }
+
+                let notaFinal = prompt("Anotaciones finales de cierre de operación (Opcional):", paso.notas || "");
                 if (notaFinal !== null) paso.notas = notaFinal.trim();
+                
                 if (paso.horaInicio) {
                     paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + (ahora - paso.horaInicio);
                     paso.horaInicio = null;
                 }
+
+                // Inyección de credenciales firmadas
                 paso.estado = "Terminado";
+                paso.legajo = promptLegajo.trim();
+                paso.firmaDigital = promptFirma.trim();
+                paso.fechaFirma = new Date().toLocaleString('es-AR');
             }
 
             let ordenEstadoGlobal = pasos.every(p => p.estado === "Terminado") ? "Terminado" : "En proceso";
@@ -564,12 +583,24 @@
             }
         }
 
-        // --- SISTEMA DE IMPRESIÓN ---
         function generarHTMLImpresion(data) {
             let pasosHTML = "";
             data.pasos.forEach(p => {
                 let insts = p.instrumentos && p.instrumentos.length > 0 ? p.instrumentos.join(", ") : "Ninguno";
-                let verif = p.instrumentosVerificadosTaller && p.instrumentosVerificadosTaller.length > 0 ? `<br><small><b>Verificado en Taller:</b> ${p.instrumentosVerificadosTaller.join(", ")}</small>` : '';
+                let verif = p.instrumentosVerificadosTaller && p.instrumentosVerificadosTaller.length > 0 ? `<br><small><b>Verificado:</b> ${p.instrumentosVerificadosTaller.join(", ")}</small>` : '';
+                
+                // Renderizado de Legajo y Firma Digital en la columna de validación física
+                let bloqueFirmaQC = `<span style="color:#666; font-style:italic;">Pendiente</span>`;
+                if (p.legajo && p.firmaDigital) {
+                    bloqueFirmaQC = `
+                        <div style="font-size:10px; line-height: 1.2;">
+                            <b>Firma:</b> ${p.firmaDigital}<br>
+                            <b>Legajo:</b> ${p.legajo}<br>
+                            <small style="font-size:8px; color:#555;">${p.fechaFirma || ''}</small>
+                        </div>
+                    `;
+                }
+
                 pasosHTML += `
                     <tr>
                         <td>${p.op}</td>
@@ -578,7 +609,7 @@
                         <td>${p.asignadoA}</td>
                         <td>${insts}${verif}</td>
                         <td>${p.estado} ${p.tiempoAcumulado ? `(${formatoTiempo(p.tiempoAcumulado)})` : ''}</td>
-                        <td style="width: 120px;"></td>
+                        <td style="width: 150px; background-color: ${p.firmaDigital ? '#fafafa' : '#fff'};">${bloqueFirmaQC}</td>
                     </tr>
                 `;
             });
@@ -627,7 +658,7 @@
                         <div class="box-info"><strong>Estado de OT</strong>${data.estado || 'Pendiente'}</div>
                     </div>
 
-                    ${data.notas ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales / Generales</strong>${data.notas}</div>` : ''}
+                    ${data.notes ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales / Generales</strong>${data.notes}</div>` : ''}
 
                     <h3 style="margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">📋 Secuencia Operacional de Manufactura</h3>
                     <table>
@@ -639,7 +670,7 @@
                                 <th>Asignado A</th>
                                 <th>Instrumentos (Cotas)</th>
                                 <th>Estado / Tiempo</th>
-                                <th>Firma / Control QC</th>
+                                <th>Firma Digital / Control QC</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -681,7 +712,9 @@
                     asignadoA: operarioSel || "No asignado",
                     instrumentos: instsChecked,
                     estado: "Pendiente (Borrador)",
-                    tiempoAcumulado: 0
+                    tiempoAcumulado: 0,
+                    legajo: "",
+                    firmaDigital: ""
                 });
             });
 
@@ -698,7 +731,7 @@
                 material: document.getElementById("material").value.trim() || "---",
                 cantidad: parseInt(document.getElementById("cantidad").value) || 1,
                 fecha: document.getElementById("fecha").value || "---",
-                notas: document.getElementById("notes").value.trim(),
+                notes: document.getElementById("notes").value.trim(),
                 pasos: pasosFormulados,
                 estado: "Borrador Pre-Emisión"
             };
@@ -715,7 +748,6 @@
             ventanaImpresion.document.write(generarHTMLImpresion(orden));
             ventanaImpresion.document.close();
         }
-        // -----------------------------
 
         function mostrarTablas() {
             let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
@@ -768,12 +800,19 @@
                         htmlInstrumentosPaso += `</div>`;
                     }
 
+                    // Renderizado de firma digital en la tarjeta visual de la planta
+                    let bloqueFirmaRutaVisual = "";
+                    if(p.legajo && p.firmaDigital) {
+                        bloqueFirmaRutaVisual = `<div style="color:#2aa198; font-size:0.75rem; font-weight:bold; margin-top:3px; border-top: 1px dotted #334155; padding-top:2px;">✍️ Firmado por: ${p.firmaDigital} (Leg: ${p.legajo})</div>`;
+                    }
+
                     htmlRutaVisual += `
                         <div class="paso-card-visual ${claseE}">
                             <strong>OP ${p.op} - Mág: ${p.maquina}</strong> | <span>${p.tarea}</span> 
                             <span style="float:right; font-weight:bold;">${icon} ${p.asignadoA}</span>
                             ${htmlInstrumentosPaso}
-                            ${p.notes ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 ${p.notes}</div>`:''}
+                            ${p.notes ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 Obs: ${p.notes}</div>`:''}
+                            ${bloqueFirmaRutaVisual}
                         </div>
                     `;
                 });
