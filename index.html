@@ -265,6 +265,7 @@
             measurementId: "G-G183P4YRVF"
         };
 
+        const LISTA_MAQUINAS = ["Ingeniería", "ST40", "VM6-HASS", "Hyundai-WIA", "ACRA", "Cut30", "Form30", "Okuma-Multus4000", "Torno Turri 300", "Torno Travis", "Fresa Schaublin", "Torno Schaublin", "Lymco", "Tarea Manual", "Rectificadora", "CAD/CAM", "Calidad-QC", "Calidad Convencional", "Calidad MMC", "Roscador", "Serrucho", "Proveedor Externo", "Gestión de compras", "Seteador ZOLLER", "Torno paralelo Gauchito T500", "Perforadora Radial Chincul RBP1", "Centro Mecanizado CNC", "Torno CNC", "Torno paralelo", "Fresadora Convencional", "Blastinadora", "Mufla"];
         const LISTA_TAREAS = ["Corte Material", "CAD", "CAM", "Hoja de Proceso", "Torneado Desbaste", "Torneado de Terminación", "Frenteado", "Fresado", "Perforado", "Roscado", "Perforado-Roscado", "Grabado", "Tronzado", "Avellanado", "Corte por Hilo", "Electro Erosión", "Rectificado", "Tratamiento Térmico", "Cromado", "DMD", "Escareado", "Soldadura", "Blastinado", "Corte Laser CO2", "Integración", "Inspección Visual", "Control Dimensional", "FIT Check", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Mecanizado de Dispositivo", "Rolado", "Materiales", "Herramientas", "Retrabajo", "Medición pie de Máquina", "Rebarbado", "Niquelado", "Zincado", "Medición de Dureza", "Ingeniería", "CAD-CAM", "Planeado", "Torneado"];
         const LISTA_OPERARIOS = ["Fernando Morano", "David Díaz", "Jorge Quinteros", "Gerardo Barbero", "Sebastián Díaz", "Mariano Ramírez", "Gustavo Fernández", "Gonzalo Turco"];
         const INSTRUMENTOS_MEDICION = ["ME-01131", "ME-01119", "ME-01147", "ME-1241", "ME-01078", "ME-00541"];
@@ -293,6 +294,9 @@
             const contenedor = document.getElementById("contenedorPasosForm");
             const totalFilas = contenedor.children.length;
             const opSugerida = opPrev || (totalFilas + 1) * 10;
+
+            let opcionesMaquinas = `<option value="" disabled ${maquinaPrev ? '' : 'selected'}>Selecciona la máquina...</option>`;
+            LISTA_MAQUINAS.forEach(m => opcionesMaquinas += `<option value="${m}" ${m === maquinaPrev ? 'selected' : ''}>${m}</option>`);
             
             let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
             LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
@@ -320,7 +324,7 @@
                     </div>
                     <div>
                         <label>Máquina / Puesto</label>
-                        <input type="text" class="input-maquina-ruta" value="${maquinaPrev}" placeholder="Ej: ACRA / TAREA MANUAL" required>
+                        <select class="select-maquina-ruta" required>${opcionesMaquinas}</select>
                     </div>
                     <div>
                         <label>Operación</label>
@@ -404,7 +408,7 @@
             let pasosArray = [];
             filasPasos.forEach((fila) => {
                 let opSel = fila.querySelector(".input-op-ruta").value;
-                let maquinaSel = fila.querySelector(".input-maquina-ruta").value.trim();
+                let maquinaSel = fila.querySelector(".select-maquina-ruta").value;
                 let tareaSel = fila.querySelector(".select-tarea-ruta").value;
                 let operarioSel = fila.querySelector(".select-operario-ruta").value;
                 
@@ -533,7 +537,6 @@
             document.getElementById("area").value = orden.area || "";
             document.getElementById("producto").value = orden.producto;
             document.getElementById("material").value = orden.material || "";
-            document.getElementById("nivelCal").value = orden.nivelCal || "";
             document.getElementById("cantidad").value = orden.cantidad;
             document.getElementById("fecha").value = orden.fecha;
             document.getElementById("notas").value = orden.notas || "";
