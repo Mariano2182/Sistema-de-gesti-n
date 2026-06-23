@@ -131,7 +131,7 @@
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
             </div>
             <div>
-                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;"></div>
+                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;">Cerrar Sesión</button>
             </div>
         </div>
         <hr>
@@ -192,10 +192,15 @@
 
                 <div class="grid">
                     <label>Observaciones Iniciales
-                        <input type="text" id="notas" placeholder="Escribir aquí instrucciones generales para la planta...">
+                        <input type="text" id="notes" placeholder="Escribir aquí instrucciones generales para la planta...">
                     </label>
                 </div>
-                <button type="submit" id="btnFormulario" style="margin-top: 15px;">Emitir Hoja de Ruta</button>
+                
+                <!-- Contenedor de botones del formulario de emisión -->
+                <div style="display: flex; gap: 12px; margin-top: 15px;">
+                    <button type="submit" id="btnFormulario" style="margin: 0; flex: 1;">Emitir Hoja de Ruta</button>
+                    <button type="button" class="outline contrast" style="margin: 0; width: auto; padding: 0 25px;" onclick="imprimirDesdeFormulario()">🖨️ Imprimir Hoja</button>
+                </div>
             </form>
         </section>
 
@@ -294,10 +299,10 @@
             const contenedor = document.getElementById("contenedorPasosForm");
             const totalFilas = contenedor.children.length;
             const opSugerida = opPrev || (totalFilas + 1) * 10;
-
+            
             let opcionesMaquinas = `<option value="" disabled ${maquinaPrev ? '' : 'selected'}>Selecciona la máquina...</option>`;
             LISTA_MAQUINAS.forEach(m => opcionesMaquinas += `<option value="${m}" ${m === maquinaPrev ? 'selected' : ''}>${m}</option>`);
-            
+
             let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
             LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
 
@@ -382,7 +387,9 @@
             document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Oficina Técnica (Admin)" : `🛠️ Operario: ${usuarioLogueado}`;
 
             document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
-            document.getElementById("columnaAccionesHistorial").style.display = esAdmin ? "table-cell" : "none";
+            
+            // Permitimos que la columna de acciones en historial se muestre siempre para que cualquiera pueda imprimir
+            document.getElementById("columnaAccionesHistorial").style.display = "table-cell";
 
             document.getElementById("contenedorPasosForm").innerHTML = "";
             if(esAdmin) agregarFilaPaso();
@@ -430,7 +437,6 @@
                 });
             });
 
-            // Ordenamiento por nro de OP secuencial
             pasosArray.sort((a,b) => a.op - b.op);
 
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
@@ -446,7 +452,7 @@
                 material: document.getElementById("material").value.trim(),
                 cantidad: parseInt(document.getElementById("cantidad").value),
                 fecha: document.getElementById("fecha").value,
-                notas: document.getElementById("notas").value.trim(),
+                notas: document.getElementById("notes").value.trim(),
                 pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
                 estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
@@ -503,15 +509,18 @@
             }
 
             let ordenEstadoGlobal = pasos.every(p => p.estado === "Terminado") ? "Terminado" : "En proceso";
+            let actualizacion = { pasos: pasos, estado: ordenEstadoGlobal };
+            if (ordenEstadoGlobal === "Terminado") {
+                actualizacion.fechaFin = new Date().toISOString().split('T')[0];
+            }
 
-            db.collection("ordenes_veng").doc(id).update({ pasos: pasos, estado: ordenEstadoGlobal });
+            db.collection("ordenes_veng").doc(id).update(actualizacion);
         }
 
         function marcarInstrumentoMesa(idOrden, idxPaso, instVal, checkStatus) {
             let orden = todasLasOrdenes.find(o => o.id === idOrden);
             if (!orden) return;
             
-            // Inicializar array verificado si no existía por retrocompatibilidad
             if(!orden.pasos[idxPaso].instrumentosVerificadosTaller) {
                 orden.pasos[idxPaso].instrumentosVerificadosTaller = [];
             }
@@ -539,7 +548,7 @@
             document.getElementById("material").value = orden.material || "";
             document.getElementById("cantidad").value = orden.cantidad;
             document.getElementById("fecha").value = orden.fecha;
-            document.getElementById("notas").value = orden.notas || "";
+            document.getElementById("notes").value = orden.notas || "";
             
             document.getElementById("contenedorPasosForm").innerHTML = "";
             orden.pasos.forEach(p => agregarFilaPaso(p.op, p.maquina, p.tarea, p.asignadoA, p.instrumentos || []));
@@ -554,6 +563,159 @@
                 db.collection("ordenes_veng").doc(id).delete();
             }
         }
+
+        // --- SISTEMA DE IMPRESIÓN ---
+        function generarHTMLImpresion(data) {
+            let pasosHTML = "";
+            data.pasos.forEach(p => {
+                let insts = p.instrumentos && p.instrumentos.length > 0 ? p.instrumentos.join(", ") : "Ninguno";
+                let verif = p.instrumentosVerificadosTaller && p.instrumentosVerificadosTaller.length > 0 ? `<br><small><b>Verificado en Taller:</b> ${p.instrumentosVerificadosTaller.join(", ")}</small>` : '';
+                pasosHTML += `
+                    <tr>
+                        <td>${p.op}</td>
+                        <td>${p.maquina}</td>
+                        <td>${p.tarea}</td>
+                        <td>${p.asignadoA}</td>
+                        <td>${insts}${verif}</td>
+                        <td>${p.estado} ${p.tiempoAcumulado ? `(${formatoTiempo(p.tiempoAcumulado)})` : ''}</td>
+                        <td style="width: 120px;"></td>
+                    </tr>
+                `;
+            });
+
+            return `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Hoja de Ruta - OT ${data.ot}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 25px; color: #000; background: #fff; font-size: 12px; }
+                        .header-print { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 25px; }
+                        .header-print h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+                        .grid-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 25px; }
+                        .box-info { border: 1px solid #000; padding: 8px; border-radius: 4px; }
+                        .box-info strong { display: block; font-size: 9px; text-transform: uppercase; color: #444; margin-bottom: 3px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        th, td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
+                        th { background-color: #eaeaea; font-size: 11px; text-transform: uppercase; }
+                        .footer { margin-top: 50px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+                        @media print { body { margin: 10px; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-print">
+                        <div>
+                            <h1>🚀 VENG S.A.</h1>
+                            <p style="margin: 3px 0 0 0; font-weight: bold; color: #333;">HOJA DE RUTA DIGITAL DE PLANTA</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <h2 style="margin: 0; font-size: 18px;">OT: ${data.ot || '----'}</h2>
+                            <p style="margin: 2px 0 0 0;">POS: ${data.pos || '---'}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid-info">
+                        <div class="box-info"><strong>Nº Plano / Parte</strong>${data.nPlano || '---'}</div>
+                        <div class="box-info"><strong>Solicitante / Cliente</strong>${data.cliente || '---'}</div>
+                        <div class="box-info"><strong>Proyecto</strong>${data.proyecto || '---'}</div>
+                        <div class="box-info"><strong>Área</strong>${data.area || '---'}</div>
+                        <div class="box-info"><strong>Denominación de Pieza</strong>${data.producto || '---'}</div>
+                        <div class="box-info"><strong>Material / Calidad</strong>${data.material || '---'}</div>
+                        <div class="box-info"><strong>Cantidad</strong>${data.cantidad || '1'}</div>
+                        <div class="box-info"><strong>Fecha Límite</strong>${data.fecha || '---'}</div>
+                        <div class="box-info"><strong>Estado de OT</strong>${data.estado || 'Pendiente'}</div>
+                    </div>
+
+                    ${data.notas ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales / Generales</strong>${data.notas}</div>` : ''}
+
+                    <h3 style="margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">📋 Secuencia Operacional de Manufactura</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">OP</th>
+                                <th>Máquina / Puesto</th>
+                                <th>Operación</th>
+                                <th>Asignado A</th>
+                                <th>Instrumentos (Cotas)</th>
+                                <th>Estado / Tiempo</th>
+                                <th>Firma / Control QC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pasosHTML}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        Documento Oficial de Planta - VENG S.A. | Fecha y Hora de Impresión: ${new Date().toLocaleString()}
+                    </div>
+
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `;
+        }
+
+        function imprimirDesdeFormulario() {
+            const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
+            let pasosFormulados = [];
+            
+            filasPasos.forEach((fila) => {
+                let opSel = fila.querySelector(".input-op-ruta").value;
+                let maquinaSel = fila.querySelector(".select-maquina-ruta").value;
+                let tareaSel = fila.querySelector(".select-tarea-ruta").value;
+                let operarioSel = fila.querySelector(".select-operario-ruta").value;
+                
+                let instsChecked = [];
+                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => {
+                    instsChecked.push(chk.value);
+                });
+
+                pasosFormulados.push({
+                    op: parseInt(opSel) || 0,
+                    maquina: maquinaSel || "No especificada",
+                    tarea: tareaSel || "No especificada",
+                    asignadoA: operarioSel || "No asignado",
+                    instrumentos: instsChecked,
+                    estado: "Pendiente (Borrador)",
+                    tiempoAcumulado: 0
+                });
+            });
+
+            pasosFormulados.sort((a,b) => a.op - b.op);
+
+            let datosBorrador = {
+                ot: document.getElementById("ot").value.trim() || "PRE-EMISIÓN",
+                pos: document.getElementById("pos").value.trim() || "---",
+                nPlano: document.getElementById("nPlano").value.trim() || "---",
+                cliente: document.getElementById("cliente").value.trim() || "---",
+                proyecto: document.getElementById("proyecto").value.trim() || "---",
+                area: document.getElementById("area").value.trim() || "---",
+                producto: document.getElementById("producto").value.trim() || "---",
+                material: document.getElementById("material").value.trim() || "---",
+                cantidad: parseInt(document.getElementById("cantidad").value) || 1,
+                fecha: document.getElementById("fecha").value || "---",
+                notas: document.getElementById("notes").value.trim(),
+                pasos: pasosFormulados,
+                estado: "Borrador Pre-Emisión"
+            };
+
+            let ventanaImpresion = window.open("", "_blank");
+            ventanaImpresion.document.write(generarHTMLImpresion(datosBorrador));
+            ventanaImpresion.document.close();
+        }
+
+        function imprimirOrden(id) {
+            let orden = todasLasOrdenes.find(o => o.id === id);
+            if (!orden) return;
+            let ventanaImpresion = window.open("", "_blank");
+            ventanaImpresion.document.write(generarHTMLImpresion(orden));
+            ventanaImpresion.document.close();
+        }
+        // -----------------------------
 
         function mostrarTablas() {
             let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
@@ -571,11 +733,9 @@
                 let idxPasoActivo = pasos.findIndex(p => p.estado !== "Terminado");
                 let pasoActivo = idxPasoActivo !== -1 ? pasos[idxPasoActivo] : pasos[pasos.length - 1];
 
-                // Filtros combinados
                 if (busquedaCliente && !orden.cliente.toLowerCase().includes(busquedaCliente)) return;
                 if (busquedaOT && orden.ot !== busquedaOT) return;
 
-                // Restricción de vista Operario (Solo ve si tiene la tarea activa asignada)
                 if (!esAdmin && orden.estado !== "Terminado") {
                     if (pasoActivo.asignadoA !== usuarioLogueado) return;
                 }
@@ -588,7 +748,6 @@
                     let claseE = p.estado.toLowerCase().replace(" ", "-");
                     let icon = p.estado === "Terminado" ? "✓" : (p.estado === "En proceso" ? "⏳ 🔵" : (p.estado === "Pausado" ? "⏸️" : "⚪"));
                     
-                    // Render de instrumentos configurados para esta operación
                     let htmlInstrumentosPaso = "";
                     if(p.instrumentos && p.instrumentos.length > 0) {
                         htmlInstrumentosPaso = `<div class="instrumentos-container">`;
@@ -597,14 +756,12 @@
                             let IsChecked = verifList.includes(ins);
                             
                             if(orden.estado !== "Terminado" && p.estado === "En proceso" && !esAdmin) {
-                                // El operario puede marcar/chequear el instrumento en tiempo real
                                 htmlInstrumentosPaso += `
                                     <label class="instrumento-tag ${IsChecked?'checked':''}">
                                         <input type="checkbox" style="margin:0 3px 0 0; width:12px; height:12px;" ${IsChecked?'checked':''} onchange="marcarInstrumentoMesa('${orden.id}', ${idx}, '${ins}', this.checked)"> ${ins}
                                     </label>
                                 `;
                             } else {
-                                // Vista estática normal
                                 htmlInstrumentosPaso += `<span class="instrumento-tag ${IsChecked?'checked':''}">⚙️ ${ins}${IsChecked?' (OK)':''}</span>`;
                             }
                         });
@@ -616,14 +773,13 @@
                             <strong>OP ${p.op} - Mág: ${p.maquina}</strong> | <span>${p.tarea}</span> 
                             <span style="float:right; font-weight:bold;">${icon} ${p.asignadoA}</span>
                             ${htmlInstrumentosPaso}
-                            ${p.notas ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 ${p.notas}</div>`:''}
+                            ${p.notes ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 ${p.notes}</div>`:''}
                         </div>
                     `;
                 });
                 htmlRutaVisual += `</div>`;
 
                 if (orden.estado !== "Terminado") {
-                    // --- TABLA ACTIVAS ---
                     let celdaFecha = "";
                     if (orden.fecha) {
                         const fEntrega = new Date(orden.fecha + 'T00:00:00');
@@ -636,74 +792,73 @@
 
                     let btnAccion = "";
                     if (pasoActivo.estado === "Pendiente") {
-                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Iniciar OP ${pasoActivo.op}</button>`;
+                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Iniciar</button>`;
                     } else if (pasoActivo.estado === "En proceso") {
                         btnAccion = `
-                            <button class="outline" style="padding:2px 8px; margin:0 4px 0 0; border-color:#cb4b16; color:#cb4b16;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸ Pausar</button>
-                            <button class="outline contrast" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Cerrar OP</button>
+                            <button class="outline warning" style="padding:2px 8px; margin:0; margin-right:5px;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸️ Pausar</button>
+                            <button class="outline success" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✅ Terminar</button>
                         `;
                     } else if (pasoActivo.estado === "Pausado") {
-                        btnAccion = `
-                            <button class="outline" style="padding:2px 8px; margin:0 4px 0 0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶ Reanudar</button>
-                            <button class="outline contrast" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✓ Cerrar OP</button>
-                        `;
+                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Reanudar</button>`;
                     }
 
-                    let accionesAdmin = "";
-                    if (esAdmin) {
-                        accionesAdmin = `
-                            <button style="background:transparent; border-color:#ffa600; color:#ffa600; padding:2px 6px; margin:0 3px 0 0;" onclick="editarOrden('${orden.id}')">✏️</button>
-                            <button style="background:transparent; border-color:#d93526; color:#d93526; padding:2px 6px; margin:0;" onclick="eliminarOrden('${orden.id}')">❌</button>
-                        `;
-                    }
-
-                    tablaActivasHTML.innerHTML += `
+                    let filaHTML = `
                         <tr>
-                            <td><strong>OT ${orden.ot || '---'}</strong><br><small style="color:gray;">POS: ${orden.pos || '---'}</small></td>
-                            <td><span style="font-size:0.85rem; font-weight:bold;">${orden.cliente}</span><br><small style="color:#268bd2;">Plano: ${orden.nPlano || 's/n'}</small></td>
+                            <td><strong>${orden.ot} / ${orden.pos}</strong></td>
+                            <td>${orden.cliente}<br><small style="color:gray;">${orden.nPlano}</small></td>
                             <td>
-                                <strong style="color:#e2e8f0; font-size:1.05rem;">${orden.producto}</strong> <small style="color:gray;">(${orden.material || '---'})</small>
+                                <span style="font-weight:bold; color:#268bd2;">${orden.producto}</span>
                                 ${htmlRutaVisual}
-                                ${orden.notas ? `<span class="bloque-nota">📝 Obs. OT: ${orden.notas}</span>`:''}
                             </td>
-                            <td><strong>${orden.cantidad}</strong></td>
+                            <td>${orden.cantidad}</td>
                             <td>${celdaFecha}</td>
                             <td>
-                                <span style="font-size:0.85rem; color:#94a3b8;">OP Activa: <strong>${pasoActivo.op}</strong></span><br>
-                                <small style="color:#818cf8;">⏱️ Acumulado: ${formatoTiempo(pasoActivo.tiempoAcumulado)}</small>
+                                <span class="badge" style="background-color:#232e3c;">${pasoActivo.estado}</span>
+                                <br><small>${pasoActivo.asignadoA}</small>
                             </td>
                             <td>
-                                <div style="display:flex; align-items:center; gap:2px;">
+                                <div style="display:flex; gap:8px; align-items:center;">
                                     ${btnAccion}
-                                    ${accionesAdmin}
+                                    <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
+                                        ${esAdmin ? `
+                                            <div style="display:flex; gap:4px;">
+                                                <button class="outline contrast" style="padding:2px 6px; margin:0;" onclick="editarOrden('${orden.id}')">✏️</button>
+                                                <button class="outline" style="padding:2px 6px; margin:0; border-color:#d93526; color:#d93526;" onclick="eliminarOrden('${orden.id}')">🗑️</button>
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                     `;
+                    tablaActivasHTML.innerHTML += filaHTML;
                 } else {
-                    // --- TABLA HISTORIAL (ENTREGADOS) ---
-                    let accionesAdminHistorial = esAdmin ? `
-                        <button style="background:transparent; border-color:#ffa600; color:#ffa600; padding:2px 6px; margin:0 3px 0 0;" onclick="editarOrden('${orden.id}')">✏️</button>
-                        <button style="background:transparent; border-color:#d93526; color:#d93526; padding:2px 6px; margin:0;" onclick="eliminarOrden('${orden.id}')">❌</button>
-                    ` : '';
-
-                    tablaHistorialHTML.innerHTML += `
+                    let filaHistorialHTML = `
                         <tr>
-                            <td><strong>OT ${orden.ot || '---'}</strong><br><small>POS: ${orden.pos || '---'}</small></td>
-                            <td><strong>${orden.cliente}</strong><br><small style="color:gray;">Plano: ${orden.nPlano || 's/n'}</small></td>
+                            <td><strong>${orden.ot} / ${orden.pos}</strong></td>
+                            <td>${orden.cliente}<br><small style="color:gray;">${orden.nPlano}</small></td>
                             <td>
-                                <strong>${orden.producto}</strong>
+                                <span style="font-weight:bold; color:#2aa198;">${orden.producto}</span>
                                 ${htmlRutaVisual}
                             </td>
                             <td>${orden.cantidad}</td>
-                            <td>${orden.fecha || '---'}</td>
+                            <td>${orden.fechaFin || '---'}</td>
+                            <td>${formatoTiempo(tiempoTotalRuta)}</td>
                             <td>
-                                <span style="color:#2aa198; font-weight:bold;">🟢 Cerrado</span><br>
-                                <small style="color:gray;">Tiempo de Proceso: ${formatoTiempo(tiempoTotalRuta)}</small>
+                                <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                                    <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
+                                    ${esAdmin ? `
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="outline contrast" style="padding:2px 6px; margin:0;" onclick="editarOrden('${orden.id}')">✏️</button>
+                                            <button class="outline" style="padding:2px 6px; margin:0; border-color:#d93526; color:#d93526;" onclick="eliminarOrden('${orden.id}')">🗑️</button>
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </td>
-                            <td style="display: ${esAdmin ? 'table-cell' : 'none'};">${accionesAdminHistorial}</td>
                         </tr>
                     `;
+                    tablaHistorialHTML.innerHTML += filaHistorialHTML;
                 }
             });
         }
