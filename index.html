@@ -8,6 +8,8 @@
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/dist/online3dviewer.min.js"></script>
 
     <style>
         :root {
@@ -108,6 +110,20 @@
         dialog article {
             background-color: #1a242f !important;
             border: 1px solid #334155;
+        }
+        #placeholderVisor {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #0f172a;
+            color: #64748b;
+            z-index: 10;
+            pointer-events: none;
+            padding: 20px;
+            text-align: center;
         }
     </style>
 </head>
@@ -265,18 +281,30 @@
         </section>
     </main>
 
-    <!-- VENTANA MODAL: VISOR DE DISCOS 3D (CAD VIEWER) -->
     <dialog id="modalVisor3D">
-      <article style="max-width: 90%; width: 1300px; height: 85vh; display: flex; flex-direction: column; padding: 20px;">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding-bottom:10px;">
-          <h3 style="margin:0;" id="tituloVisor3D">📐 Visor 3D Industrial (STEP / STL)</h3>
-          <button class="outline contrast" id="btnCerrarVisor" style="width: auto; padding: 2px 12px; margin:0; border-color:#d93526; color:#d93526;">❌ Cerrar</button>
+      <article style="max-width: 95%; width: 1300px; height: 90vh; display: flex; flex-direction: column; padding: 20px;">
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding-bottom:10px; flex-wrap: wrap; gap: 10px;">
+          <h3 style="margin:0; flex: 1;" id="tituloVisor3D">📐 Visor Mecánico de Planos 3D</h3>
+          
+          <button class="outline" style="width: auto; padding: 5px 15px; margin:0; border-color:#38bdf8; color:#38bdf8;" onclick="document.getElementById('inputArchivo3D').click()">
+            📁 Adjuntar Archivo Local (.STEP / .STL)
+          </button>
+          <input type="file" id="inputArchivo3D" style="display:none;" accept=".step,.stp,.stl,.obj">
+
+          <button class="outline contrast" id="btnCerrarVisor" style="width: auto; padding: 5px 15px; margin:0; border-color:#d93526; color:#d93526;">❌ Cerrar</button>
         </header>
-        <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden;" id="contenedorIframe3D">
-            <!-- Renderizado dinámico del motor 3D -->
+
+        <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden;" id="contenedorVisor3D">
+            <div id="placeholderVisor">
+                <span style="font-size: 3rem; margin-bottom: 10px;">📐</span>
+                <p id="textoPlaceholder" style="margin:0; font-size: 0.9rem; font-weight: 500;">
+                    Selecciona una orden o haz clic arriba para cargar un diseño.
+                </p>
+            </div>
         </div>
+
         <footer style="padding: 10px 0 0 0; margin-top:10px; font-size: 0.85rem; text-align: left; border-top: 1px solid #334155;">
-          <span id="ayudaVisor3D" style="color: #38bdf8;">💡 Nota: Puedes arrastrar cualquier archivo .STEP o .STL desde tu PC directo aquí adentro.</span>
+          <span style="color: #94a3b8;">💡 <strong>Seguridad VENG S.A:</strong> Los planos adjuntados localmente se procesan de forma privada en la memoria interna de la tablet/PC. No se transfieren a servidores externos.</span>
         </footer>
       </article>
     </dialog>
@@ -303,6 +331,7 @@
         let idEditando = null;
         let usuarioLogueado = null; 
         let esAdmin = false;
+        let visor3D = null; // Variable global del motor 3D
 
         try {
             firebase.initializeApp(firebaseConfig);
@@ -314,9 +343,76 @@
                 esAdmin = (sesionGuardada === "admin");
                 conectarEscuchaFirebase();
             }
+
+            // Inicializar el motor gráfico apenas cargue el sistema
+            inicializarVisor3DNative();
+
         } catch (e) {
             alert("Error crítico de inicialización: " + e.message);
         }
+
+        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO (OPCIÓN 2) */
+        function inicializarVisor3DNative() {
+            const contenedor = document.getElementById("contenedorVisor3D");
+            const placeholder = document.getElementById("placeholderVisor");
+            const textoPlaceholder = document.getElementById("textoPlaceholder");
+            const inputLocal = document.getElementById("inputArchivo3D");
+
+            // Configuración de rutas internas WebAssembly del motor para procesar geometrías complejas locales
+            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
+
+            visor3D = new OV.EmbeddedViewer(contenedor, {
+                backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo (#0f172a)
+                edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
+                onModelLoaded: () => {
+                    placeholder.style.display = "none";
+                },
+                onModelLoadFailed: () => {
+                    placeholder.style.display = "flex";
+                    textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar el archivo.</span> Asegúrate de que no esté dañado.";
+                }
+            });
+
+            // Capturar la carga de archivos locales desde la máquina/tablet del operador
+            inputLocal.addEventListener("change", (event) => {
+                const archivos = event.target.files;
+                if (archivos.length > 0) {
+                    placeholder.style.display = "flex";
+                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8; animate-pulse'>Procesando geometría CAD en local...</span>";
+                    visor3D.LoadModelFromFileList(archivos);
+                }
+            });
+        }
+
+        /* LOGICA DE APERTURA DEL VISOR 3D */
+        function abrirVisor3D(urlModelo, infoOT) {
+            const modal = document.getElementById("modalVisor3D");
+            const titulo = document.getElementById("tituloVisor3D");
+            const placeholder = document.getElementById("placeholderVisor");
+            const textoPlaceholder = document.getElementById("textoPlaceholder");
+
+            titulo.innerText = `📐 Visor Mecánico de Planos 3D - OT ${infoOT}`;
+            modal.setAttribute("open", "true");
+
+            // Forzar recálculo de dimensiones del canvas gráfico (corrección de renderizado en modales ocultos)
+            setTimeout(() => { if (visor3D) visor3D.Resize(); }, 250);
+
+            if (urlModelo && urlModelo.trim() !== "") {
+                placeholder.style.display = "flex";
+                textoPlaceholder.innerHTML = "🌐 Descargando y renderizando pieza desde la Oficina Técnica...";
+                visor3D.LoadModelFromUrlList([urlModelo.trim()]);
+            } else {
+                placeholder.style.display = "flex";
+                textoPlaceholder.innerHTML = "📂 Ningún plano pre-cargado en red. Presiona <strong>'Adjuntar Archivo Local'</strong> para inspeccionar la pieza.";
+                if (visor3D) visor3D.Clear();
+            }
+        }
+
+        document.getElementById("btnCerrarVisor").addEventListener("click", () => {
+            const modal = document.getElementById("modalVisor3D");
+            if (visor3D) visor3D.Clear(); // Limpia memoria de la GPU
+            modal.removeAttribute("open");
+        });
 
         function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
             const contenedor = document.getElementById("contenedorPasosForm");
@@ -329,7 +425,7 @@
             let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
             LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
 
-            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona the operario...</option>`;
+            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona el operario...</option>`;
             LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrev ? 'selected' : ''}>${o}</option>`);
 
             let checkboxInstrumentosHTML = "";
@@ -454,7 +550,7 @@
                     estado: "Pendiente",
                     tiempoAcumulado: 0,
                     horaInicio: null,
-                    notas: "",
+                    notes: "",
                     legajo: "",
                     firmaDigital: "",
                     fechaFirma: ""
@@ -476,8 +572,8 @@
                 material: document.getElementById("material").value.trim(),
                 cantidad: parseInt(document.getElementById("cantidad").value),
                 fecha: document.getElementById("fecha").value,
-                notas: document.getElementById("notes").value.trim(),
-                urlModelo3d: document.getElementById("urlModelo3d").value.trim(), // Nuevo campo
+                notes: document.getElementById("notes").value.trim(),
+                urlModelo3d: document.getElementById("urlModelo3d").value.trim(),
                 pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
                 estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
@@ -591,7 +687,7 @@
             document.getElementById("cantidad").value = orden.cantidad;
             document.getElementById("fecha").value = orden.fecha;
             document.getElementById("notes").value = orden.notas || "";
-            document.getElementById("urlModelo3d").value = orden.urlModelo3d || ""; // Setear campo
+            document.getElementById("urlModelo3d").value = orden.urlModelo3d || "";
             
             document.getElementById("contenedorPasosForm").innerHTML = "";
             orden.pasos.forEach(p => agregarFilaPaso(p.op, p.maquina, p.tarea, p.asignadoA, p.instrumentos || []));
@@ -606,38 +702,6 @@
                 db.collection("ordenes_veng").doc(id).delete();
             }
         }
-
-        /* LOGICA DE APERTURA DEL VISOR 3D (CAD INDUSTRIAL) */
-        function abrirVisor3D(urlModelo, infoOT) {
-            const modal = document.getElementById("modalVisor3D");
-            const contenedor = document.getElementById("contenedorIframe3D");
-            const titulo = document.getElementById("tituloVisor3D");
-            const ayuda = document.getElementById("ayudaVisor3D");
-
-            titulo.innerText = `📐 Visor Mecánico de Planos 3D - OT ${infoOT}`;
-            
-            // Usamos la versión embebida del motor open-source 3dviewer.net
-            let urlIframeBase = "https://3dviewer.net/";
-            
-            if (urlModelo && urlModelo.trim() !== "") {
-                // Si la OT tiene un link cargado, se lo inyectamos por parámetro hash para que el engine lo renderice automáticamente
-                contenedor.innerHTML = `<iframe src="${urlIframeBase}#model=${encodeURIComponent(urlModelo.trim())}" style="width:100%; height:100%; border:none; background:#1e293b;"></iframe>`;
-                ayuda.innerHTML = `🌐 <strong>Modelo Vinculado Detectado:</strong> Intentando pre-cargar la pieza desde la base de datos...`;
-            } else {
-                // Si no hay archivo en la base de datos, abrimos la terminal limpia lista para procesar un archivo local por drag-and-drop
-                contenedor.innerHTML = `<iframe src="${urlIframeBase}" style="width:100%; height:100%; border:none; background:#1e293b;"></iframe>`;
-                ayuda.innerHTML = `💡 <strong>Sin link adjunto:</strong> Arrastra y suelta un archivo <strong>.STEP, .STP o .STL</strong> desde tu PC o red local adentro del cuadro gris para inspeccionarlo de inmediato.`;
-            }
-
-            modal.setAttribute("open", "true");
-        }
-
-        document.getElementById("btnCerrarVisor").addEventListener("click", () => {
-            const modal = document.getElementById("modalVisor3D");
-            const contenedor = document.getElementById("contenedorIframe3D");
-            contenedor.innerHTML = ""; // Desmontamos el iframe para liberar memoria RAM de gráficos en las tablets del taller
-            modal.removeAttribute("open");
-        });
 
         function generarHTMLImpresion(data) {
             let pasosHTML = "";
