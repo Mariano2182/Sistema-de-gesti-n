@@ -351,68 +351,71 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO (OPCIÓN 2) */
-        function inicializarVisor3DNative() {
-            const contenedor = document.getElementById("contenedorVisor3D");
-            const placeholder = document.getElementById("placeholderVisor");
-            const textoPlaceholder = document.getElementById("textoPlaceholder");
-            const inputLocal = document.getElementById("inputArchivo3D");
+        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO (OPCIÓN 2) - CORREGIDA */
+function inicializarVisor3DNative() {
+    const contenedor = document.getElementById("contenedorVisor3D");
+    const placeholder = document.getElementById("placeholderVisor");
+    const textoPlaceholder = document.getElementById("textoPlaceholder");
+    const inputLocal = document.getElementById("inputArchivo3D");
 
-            // Configuración de rutas internas WebAssembly del motor para procesar geometrías complejas locales
-            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
+    // Configuración de rutas internas WebAssembly del motor
+    OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
 
-            visor3D = new OV.EmbeddedViewer(contenedor, {
-                backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo (#0f172a)
-                edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
-                onModelLoaded: () => {
-                    placeholder.style.display = "none";
-                },
-                onModelLoadFailed: () => {
-                    placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar el archivo.</span> Asegúrate de que no esté dañado.";
-                }
-            });
-
-            // Capturar la carga de archivos locales desde la máquina/tablet del operador
-            inputLocal.addEventListener("change", (event) => {
-                const archivos = event.target.files;
-                if (archivos.length > 0) {
-                    placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8; animate-pulse'>Procesando geometría CAD en local...</span>";
-                    visor3D.LoadModelFromFileList(archivos);
-                }
-            });
+    visor3D = new OV.EmbeddedViewer(contenedor, {
+        backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo
+        edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
+        onModelLoaded: () => {
+            placeholder.style.display = "none";
+        },
+        onModelLoadFailed: () => {
+            placeholder.style.display = "flex";
+            textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar.</span> El archivo podría no estar soportado o estar corrupto.";
         }
+    });
 
-        /* LOGICA DE APERTURA DEL VISOR 3D */
-        function abrirVisor3D(urlModelo, infoOT) {
-            const modal = document.getElementById("modalVisor3D");
-            const titulo = document.getElementById("tituloVisor3D");
-            const placeholder = document.getElementById("placeholderVisor");
-            const textoPlaceholder = document.getElementById("textoPlaceholder");
+    // --- FUNCIÓN CENTRAL PARA CARGAR ARCHIVOS ---
+    function procesarArchivos(archivos) {
+        if (!archivos || archivos.length === 0) return;
+        placeholder.style.display = "flex";
+        textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD en local...</span>";
+        
+        // Convertimos el FileList del navegador a un Array estándar para evitar fallos en la librería
+        const arrayArchivos = Array.from(archivos);
+        visor3D.LoadModelFromFileList(arrayArchivos);
+    }
 
-            titulo.innerText = `📐 Visor Mecánico de Planos 3D - OT ${infoOT}`;
-            modal.setAttribute("open", "true");
+    // 1. EVENTO: CLIC EN BOTÓN "ADJUNTAR ARCHIVO"
+    inputLocal.addEventListener("change", (event) => {
+        procesarArchivos(event.target.files);
+        event.target.value = ""; // Resetear el input para permitir cargar el mismo archivo 2 veces seguidas
+    });
 
-            // Forzar recálculo de dimensiones del canvas gráfico (corrección de renderizado en modales ocultos)
-            setTimeout(() => { if (visor3D) visor3D.Resize(); }, 250);
+    // 2. EVENTO: DRAG & DROP (ARRASTRAR Y SOLTAR)
+    // Evitar que el navegador abra el archivo de texto en toda la ventana
+    window.addEventListener('dragover', (e) => e.preventDefault(), false);
+    window.addEventListener('drop', (e) => e.preventDefault(), false);
 
-            if (urlModelo && urlModelo.trim() !== "") {
-                placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "🌐 Descargando y renderizando pieza desde la Oficina Técnica...";
-                visor3D.LoadModelFromUrlList([urlModelo.trim()]);
-            } else {
-                placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "📂 Ningún plano pre-cargado en red. Presiona <strong>'Adjuntar Archivo Local'</strong> para inspeccionar la pieza.";
-                if (visor3D) visor3D.Clear();
-            }
-        }
+    // Capturar cuando el archivo se arrastra SOBRE el visor 3D
+    contenedor.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        // Feedback visual: iluminar los bordes cuando el archivo pasa por encima
+        contenedor.style.border = "2px dashed #38bdf8"; 
+    });
 
-        document.getElementById("btnCerrarVisor").addEventListener("click", () => {
-            const modal = document.getElementById("modalVisor3D");
-            if (visor3D) visor3D.Clear(); // Limpia memoria de la GPU
-            modal.removeAttribute("open");
-        });
+    // Quitar el borde si sacan el mouse de la zona
+    contenedor.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        contenedor.style.border = "none";
+    });
+
+    // Capturar el momento en que SUELTAN el archivo
+    contenedor.addEventListener('drop', (event) => {
+        event.preventDefault();
+        contenedor.style.border = "none"; // Quitar feedback visual
+        procesarArchivos(event.dataTransfer.files);
+    });
+}
 
         function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
             const contenedor = document.getElementById("contenedorPasosForm");
