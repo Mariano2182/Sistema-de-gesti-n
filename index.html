@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/dist/online3dviewer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/dist/online3dviewer.min.js"></script>
 
     <style>
         :root {
@@ -297,7 +297,7 @@
         <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden;" id="contenedorVisor3D">
             <div id="placeholderVisor">
                 <span style="font-size: 3rem; margin-bottom: 10px;">📐</span>
-                <p id="textoPlaceholder" style="margin:0; font-size: 0.9rem; font-weight: 500;">
+                <p id="textoPlaceholder" style="margin:0; font-size: 0.9rem; font-weight: 500; padding: 0 20px;">
                     Selecciona una orden o haz clic arriba para cargar un diseño.
                 </p>
             </div>
@@ -310,6 +310,20 @@
     </dialog>
 
     <script>
+        // ============================================================================
+        // --- PROTECCIÓN DRAG & DROP GLOBAL CRÍTICA ---
+        // Previene de raíz que el navegador intercepte el archivo y rompa la app
+        // ============================================================================
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+
         const firebaseConfig = {
             apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
             authDomain: "sgi-v01.firebaseapp.com",
@@ -331,7 +345,7 @@
         let idEditando = null;
         let usuarioLogueado = null; 
         let esAdmin = false;
-        let visor3D = null; // Variable global del motor 3D
+        let visor3D = null; 
 
         try {
             firebase.initializeApp(firebaseConfig);
@@ -343,71 +357,67 @@
                 esAdmin = (sesionGuardada === "admin");
                 conectarEscuchaFirebase();
             }
-
-            // 🚫 CORRECCIÓN: Eliminamos la inicialización inmediata para evitar el bug del contenedor 0x0
-
         } catch (e) {
             alert("Error crítico de inicialización: " + e.message);
         }
 
         // ============================================================================
-        // --- CONTROL DEL VISOR 3D (APERTURA, CIERRE E INICIALIZACIÓN LAZY) ---
+        // --- CONTROL DEL VISOR 3D CORREGIDO CON RETARDO ASÍNCRONO ---
         // ============================================================================
-
         function abrirVisor3D(url, ot) {
             const modal = document.getElementById("modalVisor3D");
             document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico de Planos 3D - OT ${ot || 'Sin OT'}`;
             
-            // 1. Abrimos primero el modal para asegurar dimensiones del contenedor
+            // 1. Desplegamos el modal primero
             modal.showModal();
             
             const placeholder = document.getElementById("placeholderVisor");
             const textoPlaceholder = document.getElementById("textoPlaceholder");
 
-            // 2. Inicialización Perezosa (Lazy Loading)
-            if (!visor3D) {
-                inicializarVisor3DNative();
-            } else {
-                // Forzar recalculado de tamaño del canvas interno
-                visor3D.Resize();
-            }
+            // 2. CORRECCIÓN CLAVE: Retardo para dar tiempo a calcular las dimensiones CSS reales del modal
+            setTimeout(() => {
+                if (!visor3D) {
+                    inicializarVisor3DNative();
+                } else {
+                    visor3D.Resize(); // Forzar ajuste de resolución
+                }
 
-            // 3. Evaluar carga remota vs local
-            if (url && url.trim() !== "") {
-                placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Cargando modelo 3D desde servidor...</span>";
-                visor3D.LoadModelFromUrlList([url]);
-            } else {
-                placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado en red. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.";
-            }
+                // 3. Evaluar carga remota vs local
+                if (url && url.trim() !== "") {
+                    placeholder.style.display = "flex";
+                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Cargando modelo 3D desde el servidor...</span>";
+                    visor3D.LoadModelFromUrlList([url]);
+                } else {
+                    placeholder.style.display = "flex";
+                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.<br><br><small style='color:#94a3b8;'>Nota: Si abres este HTML como archivo local (file:///), los navegadores bloquean la carga de STEP locales por restricciones CORS de WebWorkers. Se recomienda usar formatos .STL o montar en un servidor local.</small>";
+                }
+            }, 100); 
         }
 
-        // Escuchador interactivo para el botón de cierre del modal
         document.getElementById("btnCerrarVisor").addEventListener("click", () => {
             document.getElementById("modalVisor3D").close();
         });
 
-        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO - CORREGIDA */
         function inicializarVisor3DNative() {
             const contenedor = document.getElementById("contenedorVisor3D");
             const placeholder = document.getElementById("placeholderVisor");
             const textoPlaceholder = document.getElementById("textoPlaceholder");
             const inputLocal = document.getElementById("inputArchivo3D");
 
-            // Configuración de rutas internas WebAssembly del motor
-            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
+            // Apuntar a las librerías WebAssembly v0.18.0
+            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/libs/');
 
             try {
                 visor3D = new OV.EmbeddedViewer(contenedor, {
-                    backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo
+                    backgroundColor: new OV.RGBAColor(15, 23, 42, 255), 
                     edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
                     onModelLoaded: () => {
                         placeholder.style.display = "none";
+                        if (visor3D) visor3D.Resize(); // Reajuste de seguridad
                     },
                     onModelLoadFailed: () => {
                         placeholder.style.display = "flex";
-                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar.</span> El archivo podría no estar soportado o estar corrupto.";
+                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría.</span><br><small style='color:#94a3b8;'>El archivo podría estar corrupto, o tu navegador bloqueó el WebWorker externo (Común si abres el HTML localmente desde file://).</small>";
                     }
                 });
             } catch (error) {
@@ -415,43 +425,36 @@
                 return;
             }
 
-            // --- FUNCIÓN CENTRAL PARA CARGAR ARCHIVOS ---
             function procesarArchivos(archivos) {
                 if (!archivos || archivos.length === 0) return;
                 placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD en local...</span>";
+                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD...</span>";
                 
-                // Convertimos el FileList del navegador a un Array estándar para evitar fallos en la librería
                 const arrayArchivos = Array.from(archivos);
                 visor3D.LoadModelFromFileList(arrayArchivos);
             }
 
-            // 1. EVENTO: CLIC EN BOTÓN "ADJUNTAR ARCHIVO"
             inputLocal.addEventListener("change", (event) => {
                 procesarArchivos(event.target.files);
-                event.target.value = ""; // Resetear el input para permitir cargar el mismo archivo 2 veces seguidas
+                event.target.value = ""; 
             });
 
-            // 2. EVENTO: DRAG & DROP (ARRASTRAR Y SOLTAR) GLOBAL
-            window.addEventListener('dragover', (e) => e.preventDefault(), false);
-            window.addEventListener('drop', (e) => e.preventDefault(), false);
-
-            // Capturar cuando el archivo se arrastra SOBRE el visor 3D
+            // Arrastrar sobre el contenedor (Eventos controlados con StopPropagation)
             contenedor.addEventListener('dragover', (event) => {
                 event.preventDefault();
-                event.dataTransfer.dropEffect = 'copy';
+                event.stopPropagation();
                 contenedor.style.border = "2px dashed #38bdf8"; 
             });
 
-            // Quitar el borde si sacan el mouse de la zona
             contenedor.addEventListener('dragleave', (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 contenedor.style.border = "none";
             });
 
-            // Capturar el momento en que SUELTAN el archivo
             contenedor.addEventListener('drop', (event) => {
                 event.preventDefault();
+                event.stopPropagation(); 
                 contenedor.style.border = "none"; 
                 procesarArchivos(event.dataTransfer.files);
             });
@@ -1070,5 +1073,4 @@
         }
     </script>
 </body>
-</html>
 </html>
