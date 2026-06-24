@@ -8,8 +8,8 @@
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     
+    <!-- Versión estable del visor 3D -->
     <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/dist/online3dviewer.min.js"></script>
 
     <style>
@@ -107,7 +107,6 @@
             margin-bottom: 12px;
             border-left: 4px solid #268bd2;
         }
-        /* Ajustes Visor 3D */
         dialog article {
             background-color: #1a242f !important;
             border: 1px solid #334155;
@@ -134,7 +133,7 @@
         <h2>🚀 VENG - Control de Planta</h2>
         <p style="color: gray;">Selecciona tu usuario para ingresar al sistema</p>
         <hr>
-        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnica</button>
+        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnico</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Fernando Morano</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ David Díaz</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Jorge Quinteros</button>
@@ -147,7 +146,7 @@
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
-        <div class="header-taller {">
+        <div class="header-taller">
             <div>
                 <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
@@ -216,9 +215,8 @@
                     <label>Observaciones Iniciales
                         <input type="text" id="notes" placeholder="Escribir aquí instrucciones generales para la planta...">
                     </label>
-                    <label>Adjuntar Plano o Diseño Técnico (PDF, STEP, STP, STL)
+                    <label>📎 Adjuntar Plano o Diseño Local (Máx. 1MB - PDF, STEP, STP, STL)
                         <input type="file" id="archivoAdjunto" accept=".pdf,.step,.stp,.stl">
-                        <input type="hidden" id="urlModelo3d">
                         <small id="infoArchivoEdicion" style="color: #38bdf8; display: none; margin-top: 5px;"></small>
                     </label>
                 </div>
@@ -307,13 +305,12 @@
         </div>
 
         <footer style="padding: 10px 0 0 0; margin-top:10px; font-size: 0.85rem; text-align: left; border-top: 1px solid #334155;">
-          <span style="color: #94a3b8;">💡 <strong>Seguridad VENG S.A:</strong> Los planos adjuntados localmente se procesan de forma privada en la memoria interna de la tablet/PC. No se transfieren a servidores externos.</span>
+          <span style="color: #94a3b8;">💡 <strong>Seguridad VENG S.A:</strong> Los planos se procesan y visualizan de forma local e independiente en cada terminal.</span>
         </footer>
       </article>
     </dialog>
 
     <script>
-        // --- PROTECCIÓN DRAG & DROP GLOBAL ---
         window.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
         window.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
 
@@ -334,7 +331,6 @@
         const INSTRUMENTOS_MEDICION = ["ME-01131", "ME-01119", "ME-01147", "ME-1241", "ME-01078", "ME-00541"];
 
         let db;
-        let storage; // Instanciado global para subida de planos
         let todasLasOrdenes = [];
         let idEditando = null;
         let usuarioLogueado = null; 
@@ -344,7 +340,6 @@
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
-            storage = firebase.storage(); // Inicialización de almacenamiento remoto de archivos
 
             let sesionGuardada = localStorage.getItem("usuarioTaller");
             if (sesionGuardada) {
@@ -357,25 +352,38 @@
         }
 
         // ============================================================================
-        // --- CONTROL DEL VISOR 3D / INTEGRACIÓN CON PDF AUTOMÁTICA ---
+        // --- PROCESAMIENTO GRATUITO DE ADJUNTOS EN MEMORIA ---
         // ============================================================================
-        function abrirVisor3D(url, ot) {
-            if (!url) {
-                abrirModal3DNative("", ot);
+        function abrirVisor3DDesdeTabla(idOrden) {
+            let orden = todasLasOrdenes.find(o => o.id === idOrden);
+            if (!orden || !orden.archivoAdjuntoData) {
+                abrirModal3DNative(null, "");
+                return;
+            }
+            
+            const archivoObj = orden.archivoAdjuntoData;
+            
+            // Reconstrucción del binario a partir del string Base64 en Firestore
+            const base64Parts = archivoObj.base64.split(',');
+            const mime = base64Parts[0].match(/:(.*?);/)[1];
+            const byteString = atob(base64Parts[1]);
+            let n = byteString.length;
+            const u8arr = new Uint8Array(n);
+            while(n--) {
+                u8arr[n] = byteString.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], {type: mime});
+            const urlBlob = URL.createObjectURL(blob);
+
+            if (archivoObj.nombre.toLowerCase().includes('.pdf')) {
+                window.open(urlBlob, '_blank');
                 return;
             }
 
-            // Si es un archivo PDF, se abre directamente en alta calidad en una pestaña limpia
-            if (url.toLowerCase().includes('.pdf')) {
-                window.open(url, '_blank');
-                return;
-            }
-
-            // Si es geometría CAD (STEP/STL), abre el motor 3D
-            abrirModal3DNative(url, ot);
+            abrirModal3DNative({ url: urlBlob, nombre: archivoObj.nombre }, orden.ot);
         }
 
-        function abrirModal3DNative(url, ot) {
+        function abrirModal3DNative(archivoInfo, ot) {
             const modal = document.getElementById("modalVisor3D");
             document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico de Planos 3D - OT ${ot || 'Sin OT'}`;
             
@@ -390,13 +398,13 @@
                     visor3D.Resize();
                 }
 
-                if (url && url.trim() !== "") {
+                if (archivoInfo && archivoInfo.url) {
                     placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Cargando modelo 3D desde el servidor...</span>";
-                    visor3D.LoadModelFromUrlList([url]);
+                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD desde base de datos...</span>";
+                    visor3D.LoadModelFromUrlList([{ url: archivoInfo.url, name: archivoInfo.nombre }]);
                 } else {
                     placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.";
+                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí.";
                 }
             }, 100);
         }
@@ -555,7 +563,19 @@
             });
         }
 
-        // CAMBIO CRÍTICO: Transformado en asíncrono para gestionar la subida del archivo físico
+        function leerArchivoLocalComoBase64(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    resolve({
+                        nombre: file.name,
+                        base64: e.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         async function guardarOrden() {
             if (!db || !esAdmin) return;
             
@@ -567,27 +587,20 @@
 
             const btn = document.getElementById("btnFormulario");
             const inputArchivo = document.getElementById("archivoAdjunto");
-            let urlFinal = document.getElementById("urlModelo3d").value;
+            let archivoDataFinal = null;
 
-            // Bloqueo del botón y subida del archivo local a Firebase Storage si existe alguno seleccionado
             if (inputArchivo.files.length > 0) {
-                btn.innerText = "⏳ Subiendo archivo técnico a la nube de VENG...";
-                btn.disabled = true;
                 const file = inputArchivo.files[0];
-                const otVal = document.getElementById("ot").value.trim();
-                const posVal = document.getElementById("pos").value.trim();
                 
-                // Estructura limpia de almacenamiento organizada por OT y POS
-                const storageRef = storage.ref(`planos_veng/OT_${otVal}_POS_${posVal}_${Date.now()}_${file.name}`);
-                try {
-                    const snapshot = await storageRef.put(file);
-                    urlFinal = await snapshot.ref.getDownloadURL();
-                } catch (error) {
-                    alert("❌ Error crítico al cargar el archivo en el servidor: " + error.message);
-                    btn.innerText = idEditando ? "💾 Guardar Cambios en Ruta" : "Emitir Hoja de Ruta";
-                    btn.disabled = false;
+                // Control estricto de cuota gratuita de documentos en Spark
+                if (file.size > 1024 * 1024) { 
+                    alert("⚠️ El archivo supera 1 MB. Para mantener el sistema 100% gratuito, optimiza o comprime el diseño o plano antes de subirlo.");
                     return;
                 }
+                
+                btn.innerText = "⏳ Codificando archivo en base de datos...";
+                btn.disabled = true;
+                archivoDataFinal = await leerArchivoLocalComoBase64(file);
             }
 
             let pasosArray = [];
@@ -631,7 +644,7 @@
                 cantidad: parseInt(document.getElementById("cantidad").value),
                 fecha: document.getElementById("fecha").value,
                 notes: document.getElementById("notes").value.trim(),
-                urlModelo3d: urlFinal, // Guarda la URL segura devuelta por Firebase Storage
+                archivoAdjuntoData: archivoDataFinal || (idEditando && ordenAnterior.archivoAdjuntoData ? ordenAnterior.archivoAdjuntoData : null),
                 pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
                 estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
@@ -738,13 +751,11 @@
             document.getElementById("cantidad").value = orden.cantidad;
             document.getElementById("fecha").value = orden.fecha;
             document.getElementById("notes").value = orden.notes || "";
-            document.getElementById("urlModelo3d").value = orden.urlModelo3d || "";
             
-            // Mostrar info del documento adjunto preexistente
             const divInfo = document.getElementById("infoArchivoEdicion");
-            if(orden.urlModelo3d) {
+            if(orden.archivoAdjuntoData) {
                 divInfo.style.display = "block";
-                divInfo.innerHTML = `📎 Plano cargado: <a href="${orden.urlModelo3d}" target="_blank" style="color:#38bdf8; text-decoration:underline;">Ver documento actual</a> (Selecciona un archivo nuevo solo si deseas reemplazarlo).`;
+                divInfo.innerHTML = `📎 Archivo cargado en base de datos: <strong>${orden.archivoAdjuntoData.nombre}</strong> (Selecciona un archivo nuevo solo si deseas cambiarlo).`;
             } else {
                 divInfo.style.display = "none";
             }
@@ -946,11 +957,12 @@
                 });
                 htmlRutaVisual += `</div>`;
 
-                // Configuración dinámica del botón de planos/diseño según extensión (.pdf vs CAD 3D)
-                let esPDF = orden.urlModelo3d && orden.urlModelo3d.toLowerCase().includes('.pdf');
-                let iconoBotonPlano = esPDF ? "📄" : "📐";
-                let tituloBotonPlano = esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D Interactiva (STEP/STL)";
-                let colorBotonPlano = esPDF ? "#2aa198" : "#38bdf8";
+                // Configuración de botones de plano adaptada al nuevo esquema Base64
+                let tieneArchivo = !!orden.archivoAdjuntoData;
+                let esPDF = tieneArchivo && orden.archivoAdjuntoData.nombre.toLowerCase().includes('.pdf');
+                let iconoBotonPlano = tieneArchivo ? (esPDF ? "📄" : "📐") : "🚫";
+                let tituloBotonPlano = tieneArchivo ? (esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D (STEP/STL)") : "Sin plano adjunto";
+                let colorBotonPlano = tieneArchivo ? (esPDF ? "#2aa198" : "#38bdf8") : "#64748b";
 
                 if (orden.estado !== "Terminado") {
                     let celdaFecha = "";
@@ -995,7 +1007,7 @@
                                     <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
                                         <div style="display:flex; gap:4px;">
                                             <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
+                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" ${tieneArchivo ? '' : 'disabled'} onclick="abrirVisor3DDesdeTabla('${orden.id}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
                                         </div>
                                         ${esAdmin ? `
                                             <div style="display:flex; gap:4px;">
@@ -1025,7 +1037,7 @@
                                 <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
                                     <div style="display:flex; gap:4px;">
                                         <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
+                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" ${tieneArchivo ? '' : 'disabled'} onclick="abrirVisor3DDesdeTabla('${orden.id}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
                                     </div>
                                     ${esAdmin ? `
                                         <div style="display:flex; gap:4px;">
