@@ -9,7 +9,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
-    <!-- Versión estable del visor 3D -->
     <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/dist/online3dviewer.min.js"></script>
 
     <style>
@@ -133,7 +132,7 @@
         <h2>🚀 VENG - Control de Planta</h2>
         <p style="color: gray;">Selecciona tu usuario para ingresar al sistema</p>
         <hr>
-        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnico</button>
+        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnica</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Fernando Morano</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ David Díaz</button>
         <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Jorge Quinteros</button>
@@ -146,7 +145,7 @@
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
-        <div class="header-taller">
+        <div class="header-taller {">
             <div>
                 <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
@@ -351,9 +350,6 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        // ============================================================================
-        // --- PROCESAMIENTO GRATUITO DE ADJUNTOS EN MEMORIA ---
-        // ============================================================================
         function abrirVisor3DDesdeTabla(idOrden) {
             let orden = todasLasOrdenes.find(o => o.id === idOrden);
             if (!orden || !orden.archivoAdjuntoData) {
@@ -363,7 +359,6 @@
             
             const archivoObj = orden.archivoAdjuntoData;
             
-            // Reconstrucción del binario a partir del string Base64 en Firestore
             const base64Parts = archivoObj.base64.split(',');
             const mime = base64Parts[0].match(/:(.*?);/)[1];
             const byteString = atob(base64Parts[1]);
@@ -592,7 +587,6 @@
             if (inputArchivo.files.length > 0) {
                 const file = inputArchivo.files[0];
                 
-                // Control estricto de cuota gratuita de documentos en Spark
                 if (file.size > 1024 * 1024) { 
                     alert("⚠️ El archivo supera 1 MB. Para mantener el sistema 100% gratuito, optimiza o comprime el diseño o plano antes de subirlo.");
                     return;
@@ -908,9 +902,10 @@
                 if (busquedaCliente && !orden.cliente.toLowerCase().includes(busquedaCliente)) return;
                 if (busquedaOT && orden.ot !== busquedaOT) return;
 
-                if (!esAdmin && orden.estado !== "Terminado") {
-                    if (pasoActivo.asignadoA !== usuarioLogueado) return;
-                }
+                // --- NUEVA LÓGICA DE VISIBILIDAD DE PLANTA (100% TRANSPARENTE) ---
+                // Retiramos el bloqueo invisible. Todos los usuarios ven el flujo activo.
+                // Detectamos si la operación activa actual pertenece al operario conectado:
+                let esMiTurnoActivo = (!esAdmin && orden.estado !== "Terminado" && pasoActivo.estado !== "Terminado" && pasoActivo.asignadoA === usuarioLogueado);
 
                 let tiempoTotalRuta = 0;
                 let htmlRutaVisual = `<div class="contenedor-ruta-visual">`;
@@ -927,7 +922,8 @@
                             let verifList = p.instrumentosVerificadosTaller || [];
                             let IsChecked = verifList.includes(ins);
                             
-                            if(orden.estado !== "Terminado" && p.estado === "En proceso" && !esAdmin) {
+                            // Permite verificar instrumentos solo si es el operario asignado y la tarea está en progreso
+                            if(orden.estado !== "Terminado" && p.estado === "En proceso" && p.asignadoA === usuarioLogueado && !esAdmin) {
                                 htmlInstrumentosPaso += `
                                     <label class="instrumento-tag ${IsChecked?'checked':''}">
                                         <input type="checkbox" style="margin:0 3px 0 0; width:12px; height:12px;" ${IsChecked?'checked':''} onchange="marcarInstrumentoMesa('${orden.id}', ${idx}, '${ins}', this.checked)"> ${ins}
@@ -957,12 +953,15 @@
                 });
                 htmlRutaVisual += `</div>`;
 
-                // Configuración de botones de plano adaptada al nuevo esquema Base64
                 let tieneArchivo = !!orden.archivoAdjuntoData;
                 let esPDF = tieneArchivo && orden.archivoAdjuntoData.nombre.toLowerCase().includes('.pdf');
                 let iconoBotonPlano = tieneArchivo ? (esPDF ? "📄" : "📐") : "🚫";
                 let tituloBotonPlano = tieneArchivo ? (esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D (STEP/STL)") : "Sin plano adjunto";
                 let colorBotonPlano = tieneArchivo ? (esPDF ? "#2aa198" : "#38bdf8") : "#64748b";
+
+                // Estilo destacado de celda si es el turno activo del operario
+                let estiloFilaTurno = esMiTurnoActivo ? 'style="background-color: #172535; border-left: 5px solid #38bdf8;"' : '';
+                let cartelMiTurno = esMiTurnoActivo ? '<br><span class="badge" style="background-color:#38bdf8; color:#0f172a; font-weight:bold; font-size:0.7rem; display:inline-block; margin-top:5px; animation: parpadeoAlerta 2s infinite ease-in-out;">⚡ TU TURNO AHORA</span>' : '';
 
                 if (orden.estado !== "Terminado") {
                     let celdaFecha = "";
@@ -976,19 +975,26 @@
                     }
 
                     let btnAccion = "";
-                    if (pasoActivo.estado === "Pendiente") {
-                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Iniciar</button>`;
-                    } else if (pasoActivo.estado === "En proceso") {
-                        btnAccion = `
-                            <button class="outline warning" style="padding:2px 8px; margin:0; margin-right:5px;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸️ Pausar</button>
-                            <button class="outline success" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✅ Terminar</button>
-                        `;
-                    } else if (pasoActivo.estado === "Pausado") {
-                        btnAccion = `<button class="outline" style="padding:2px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Reanudar</button>`;
+                    // Los botones de control de estado solo se le muestran al administrador o al operario dueño de la operación actual
+                    if (esAdmin || esMiTurnoActivo) {
+                        if (pasoActivo.estado === "Pendiente") {
+                            btnAccion = `<button class="outline" style="padding:4px 10px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Iniciar</button>`;
+                        } else if (pasoActivo.estado === "En proceso") {
+                            btnAccion = `
+                                <div style="display:flex; gap:4px;">
+                                    <button class="outline warning" style="padding:4px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸️ Pausar</button>
+                                    <button class="outline success" style="padding:4px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✅ Cerrar</button>
+                                </div>
+                            `;
+                        } else if (pasoActivo.estado === "Pausado") {
+                            btnAccion = `<button class="outline" style="padding:4px 10px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Reanudar</button>`;
+                        }
+                    } else {
+                        btnAccion = `<small style="color:gray; font-style:italic;">En espera de OP anterior</small>`;
                     }
 
                     let filaHTML = `
-                        <tr>
+                        <tr ${estiloFilaTurno}>
                             <td><strong>${orden.ot} / ${orden.pos}</strong></td>
                             <td>${orden.cliente}<br><small style="color:gray;">${orden.nPlano}</small></td>
                             <td>
@@ -1000,6 +1006,7 @@
                             <td>
                                 <span class="badge" style="background-color:#232e3c;">${pasoActivo.estado}</span>
                                 <br><small>${pasoActivo.asignadoA}</small>
+                                ${cartelMiTurno}
                             </td>
                             <td>
                                 <div style="display:flex; gap:8px; align-items:center;">
