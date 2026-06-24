@@ -8,6 +8,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/dist/online3dviewer.min.js"></script>
 
@@ -146,7 +147,7 @@
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
-        <div class="header-taller">
+        <div class="header-taller {">
             <div>
                 <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
@@ -215,8 +216,10 @@
                     <label>Observaciones Iniciales
                         <input type="text" id="notes" placeholder="Escribir aquí instrucciones generales para la planta...">
                     </label>
-                    <label>Enlace del Modelo 3D (Opcional - STEP / STP / STL)
-                        <input type="url" id="urlModelo3d" placeholder="Ej: https://servidor-veng/disenos/pieza.step">
+                    <label>Adjuntar Plano o Diseño Técnico (PDF, STEP, STP, STL)
+                        <input type="file" id="archivoAdjunto" accept=".pdf,.step,.stp,.stl">
+                        <input type="hidden" id="urlModelo3d">
+                        <small id="infoArchivoEdicion" style="color: #38bdf8; display: none; margin-top: 5px;"></small>
                     </label>
                 </div>
                 
@@ -310,19 +313,9 @@
     </dialog>
 
     <script>
-        // ============================================================================
-        // --- PROTECCIÓN DRAG & DROP GLOBAL CRÍTICA ---
-        // Previene de raíz que el navegador intercepte el archivo y rompa la app
-        // ============================================================================
-        window.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
-
-        window.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
+        // --- PROTECCIÓN DRAG & DROP GLOBAL ---
+        window.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+        window.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
 
         const firebaseConfig = {
             apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
@@ -341,6 +334,7 @@
         const INSTRUMENTOS_MEDICION = ["ME-01131", "ME-01119", "ME-01147", "ME-1241", "ME-01078", "ME-00541"];
 
         let db;
+        let storage; // Instanciado global para subida de planos
         let todasLasOrdenes = [];
         let idEditando = null;
         let usuarioLogueado = null; 
@@ -350,6 +344,7 @@
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
+            storage = firebase.storage(); // Inicialización de almacenamiento remoto de archivos
 
             let sesionGuardada = localStorage.getItem("usuarioTaller");
             if (sesionGuardada) {
@@ -362,36 +357,48 @@
         }
 
         // ============================================================================
-        // --- CONTROL DEL VISOR 3D CORREGIDO CON RETARDO ASÍNCRONO ---
+        // --- CONTROL DEL VISOR 3D / INTEGRACIÓN CON PDF AUTOMÁTICA ---
         // ============================================================================
         function abrirVisor3D(url, ot) {
+            if (!url) {
+                abrirModal3DNative("", ot);
+                return;
+            }
+
+            // Si es un archivo PDF, se abre directamente en alta calidad en una pestaña limpia
+            if (url.toLowerCase().includes('.pdf')) {
+                window.open(url, '_blank');
+                return;
+            }
+
+            // Si es geometría CAD (STEP/STL), abre el motor 3D
+            abrirModal3DNative(url, ot);
+        }
+
+        function abrirModal3DNative(url, ot) {
             const modal = document.getElementById("modalVisor3D");
             document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico de Planos 3D - OT ${ot || 'Sin OT'}`;
             
-            // 1. Desplegamos el modal primero
             modal.showModal();
-            
             const placeholder = document.getElementById("placeholderVisor");
             const textoPlaceholder = document.getElementById("textoPlaceholder");
 
-            // 2. CORRECCIÓN CLAVE: Retardo para dar tiempo a calcular las dimensiones CSS reales del modal
             setTimeout(() => {
                 if (!visor3D) {
                     inicializarVisor3DNative();
                 } else {
-                    visor3D.Resize(); // Forzar ajuste de resolución
+                    visor3D.Resize();
                 }
 
-                // 3. Evaluar carga remota vs local
                 if (url && url.trim() !== "") {
                     placeholder.style.display = "flex";
                     textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Cargando modelo 3D desde el servidor...</span>";
                     visor3D.LoadModelFromUrlList([url]);
                 } else {
                     placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.<br><br><small style='color:#94a3b8;'>Nota: Si abres este HTML como archivo local (file:///), los navegadores bloquean la carga de STEP locales por restricciones CORS de WebWorkers. Se recomienda usar formatos .STL o montar en un servidor local.</small>";
+                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.";
                 }
-            }, 100); 
+            }, 100);
         }
 
         document.getElementById("btnCerrarVisor").addEventListener("click", () => {
@@ -404,7 +411,6 @@
             const textoPlaceholder = document.getElementById("textoPlaceholder");
             const inputLocal = document.getElementById("inputArchivo3D");
 
-            // Apuntar a las librerías WebAssembly v0.18.0
             OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/libs/');
 
             try {
@@ -413,11 +419,11 @@
                     edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
                     onModelLoaded: () => {
                         placeholder.style.display = "none";
-                        if (visor3D) visor3D.Resize(); // Reajuste de seguridad
+                        if (visor3D) visor3D.Resize();
                     },
                     onModelLoadFailed: () => {
                         placeholder.style.display = "flex";
-                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría.</span><br><small style='color:#94a3b8;'>El archivo podría estar corrupto, o tu navegador bloqueó el WebWorker externo (Común si abres el HTML localmente desde file://).</small>";
+                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría.</span>";
                     }
                 });
             } catch (error) {
@@ -429,7 +435,6 @@
                 if (!archivos || archivos.length === 0) return;
                 placeholder.style.display = "flex";
                 textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD...</span>";
-                
                 const arrayArchivos = Array.from(archivos);
                 visor3D.LoadModelFromFileList(arrayArchivos);
             }
@@ -439,25 +444,9 @@
                 event.target.value = ""; 
             });
 
-            // Arrastrar sobre el contenedor (Eventos controlados con StopPropagation)
-            contenedor.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                contenedor.style.border = "2px dashed #38bdf8"; 
-            });
-
-            contenedor.addEventListener('dragleave', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                contenedor.style.border = "none";
-            });
-
-            contenedor.addEventListener('drop', (event) => {
-                event.preventDefault();
-                event.stopPropagation(); 
-                contenedor.style.border = "none"; 
-                procesarArchivos(event.dataTransfer.files);
-            });
+            contenedor.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "2px dashed #38bdf8"; });
+            contenedor.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; });
+            contenedor.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; procesarArchivos(e.dataTransfer.files); });
         }
 
         function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
@@ -566,13 +555,39 @@
             });
         }
 
-        function guardarOrden() {
+        // CAMBIO CRÍTICO: Transformado en asíncrono para gestionar la subida del archivo físico
+        async function guardarOrden() {
             if (!db || !esAdmin) return;
             
             const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
             if (filasPasos.length === 0) {
                 alert("⚠️ Debes agregar al menos una operación a la Hoja de Ruta.");
                 return;
+            }
+
+            const btn = document.getElementById("btnFormulario");
+            const inputArchivo = document.getElementById("archivoAdjunto");
+            let urlFinal = document.getElementById("urlModelo3d").value;
+
+            // Bloqueo del botón y subida del archivo local a Firebase Storage si existe alguno seleccionado
+            if (inputArchivo.files.length > 0) {
+                btn.innerText = "⏳ Subiendo archivo técnico a la nube de VENG...";
+                btn.disabled = true;
+                const file = inputArchivo.files[0];
+                const otVal = document.getElementById("ot").value.trim();
+                const posVal = document.getElementById("pos").value.trim();
+                
+                // Estructura limpia de almacenamiento organizada por OT y POS
+                const storageRef = storage.ref(`planos_veng/OT_${otVal}_POS_${posVal}_${Date.now()}_${file.name}`);
+                try {
+                    const snapshot = await storageRef.put(file);
+                    urlFinal = await snapshot.ref.getDownloadURL();
+                } catch (error) {
+                    alert("❌ Error crítico al cargar el archivo en el servidor: " + error.message);
+                    btn.innerText = idEditando ? "💾 Guardar Cambios en Ruta" : "Emitir Hoja de Ruta";
+                    btn.disabled = false;
+                    return;
+                }
             }
 
             let pasosArray = [];
@@ -583,9 +598,7 @@
                 let operarioSel = fila.querySelector(".select-operario-ruta").value;
                 
                 let instsChecked = [];
-                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => {
-                    instsChecked.push(chk.value);
-                });
+                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => { instsChecked.push(chk.value); });
 
                 pasosArray.push({
                     op: parseInt(opSel),
@@ -604,7 +617,6 @@
             });
 
             pasosArray.sort((a,b) => a.op - b.op);
-
             let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
             
             let datosOrden = {
@@ -619,28 +631,29 @@
                 cantidad: parseInt(document.getElementById("cantidad").value),
                 fecha: document.getElementById("fecha").value,
                 notes: document.getElementById("notes").value.trim(),
-                urlModelo3d: document.getElementById("urlModelo3d").value.trim(),
+                urlModelo3d: urlFinal, // Guarda la URL segura devuelta por Firebase Storage
                 pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
                 estado: idEditando ? ordenAnterior.estado : "Pendiente"
             };
             
             if (idEditando) {
                 db.collection("ordenes_veng").doc(idEditando).update(datosOrden)
-                .then(() => {
-                    idEditando = null;
-                    document.getElementById("btnFormulario").innerText = "Emitir Hoja de Ruta";
-                    document.getElementById("formularioOrden").reset();
-                    document.getElementById("contenedorPasosForm").innerHTML = "";
-                    agregarFilaPaso();
-                });
+                .then(() => {limpiarFormularioPosterior();});
             } else {
                 db.collection("ordenes_veng").add(datosOrden)
-                .then(() => {
-                    document.getElementById("formularioOrden").reset();
-                    document.getElementById("contenedorPasosForm").innerHTML = "";
-                    agregarFilaPaso();
-                });
+                .then(() => {limpiarFormularioPosterior();});
             }
+        }
+
+        function limpiarFormularioPosterior() {
+            idEditando = null;
+            const btn = document.getElementById("btnFormulario");
+            btn.innerText = "Emitir Hoja de Ruta";
+            btn.disabled = false;
+            document.getElementById("formularioOrden").reset();
+            document.getElementById("infoArchivoEdicion").style.display = "none";
+            document.getElementById("contenedorPasosForm").innerHTML = "";
+            agregarFilaPaso();
         }
 
         function cambiarEstado(id, nuevoEstado) {
@@ -667,18 +680,12 @@
                 paso.estado = "Pausado";
             } else if (nuevoEstado === "Terminado") {
                 let promptLegajo = prompt(`[CIERRE DE OP ${paso.op}] Ingrese su Número de LEGAJO para validar la operación:`);
-                if (promptLegajo === null || promptLegajo.trim() === "") {
-                    alert("❌ Proceso cancelado: El número de legajo es estrictamente obligatorio para cerrar la operación.");
-                    return;
-                }
+                if (promptLegajo === null || promptLegajo.trim() === "") { alert("❌ Operación cancelada."); return; }
 
-                let promptFirma = prompt(`[FIRMA DIGITAL] Ingrese su Nombre y Apellido completos como Firma Digital de conformidad:`);
-                if (promptFirma === null || promptFirma.trim() === "") {
-                    alert("❌ Proceso cancelado: La firma digital es obligatoria para certificar la ruta operacional.");
-                    return;
-                }
+                let promptFirma = prompt(`[FIRMA DIGITAL] Ingrese su Nombre y Apellido para conformidad:`);
+                if (promptFirma === null || promptFirma.trim() === "") { alert("❌ Operación cancelada."); return; }
 
-                let notaFinal = prompt("Anotaciones finales de cierre de operación (Opcional):", paso.notes || "");
+                let notaFinal = prompt("Anotaciones finales (Opcional):", paso.notes || "");
                 if (notaFinal !== null) paso.notes = notaFinal.trim();
                 
                 if (paso.horaInicio) {
@@ -697,7 +704,6 @@
             if (ordenEstadoGlobal === "Terminado") {
                 actualizacion.fechaFin = new Date().toISOString().split('T')[0];
             }
-
             db.collection("ordenes_veng").doc(id).update(actualizacion);
         }
 
@@ -715,7 +721,6 @@
             } else {
                 orden.pasos[idxPaso].instrumentosVerificadosTaller = verificados.filter(i => i !== instVal);
             }
-            
             db.collection("ordenes_veng").doc(idOrden).update({ pasos: orden.pasos });
         }
 
@@ -732,9 +737,18 @@
             document.getElementById("material").value = orden.material || "";
             document.getElementById("cantidad").value = orden.cantidad;
             document.getElementById("fecha").value = orden.fecha;
-            document.getElementById("notes").value = orden.notas || "";
+            document.getElementById("notes").value = orden.notes || "";
             document.getElementById("urlModelo3d").value = orden.urlModelo3d || "";
             
+            // Mostrar info del documento adjunto preexistente
+            const divInfo = document.getElementById("infoArchivoEdicion");
+            if(orden.urlModelo3d) {
+                divInfo.style.display = "block";
+                divInfo.innerHTML = `📎 Plano cargado: <a href="${orden.urlModelo3d}" target="_blank" style="color:#38bdf8; text-decoration:underline;">Ver documento actual</a> (Selecciona un archivo nuevo solo si deseas reemplazarlo).`;
+            } else {
+                divInfo.style.display = "none";
+            }
+
             document.getElementById("contenedorPasosForm").innerHTML = "";
             orden.pasos.forEach(p => agregarFilaPaso(p.op, p.maquina, p.tarea, p.asignadoA, p.instrumentos || []));
             
@@ -754,39 +768,20 @@
             data.pasos.forEach(p => {
                 let insts = p.instrumentos && p.instrumentos.length > 0 ? p.instrumentos.join(", ") : "Ninguno";
                 let verif = p.instrumentosVerificadosTaller && p.instrumentosVerificadosTaller.length > 0 ? `<br><small><b>Verificado:</b> ${p.instrumentosVerificadosTaller.join(", ")}</small>` : '';
-                
                 let bloqueFirmaQC = `<span style="color:#666; font-style:italic;">Pendiente</span>`;
                 if (p.legajo && p.firmaDigital) {
-                    bloqueFirmaQC = `
-                        <div style="font-size:10px; line-height: 1.2;">
-                            <b>Firma:</b> ${p.firmaDigital}<br>
-                            <b>Legajo:</b> ${p.legajo}<br>
-                            <small style="font-size:8px; color:#555;">${p.fechaFirma || ''}</small>
-                        </div>
-                    `;
+                    bloqueFirmaQC = `<div style="font-size:10px; line-height: 1.2;"><b>Firma:</b> ${p.firmaDigital}<br><b>Legajo:</b> ${p.legajo}<br><small style="font-size:8px; color:#555;">${p.fechaFirma || ''}</small></div>`;
                 }
-
-                pasosHTML += `
-                    <tr>
-                        <td>${p.op}</td>
-                        <td>${p.maquina}</td>
-                        <td>${p.tarea}</td>
-                        <td>${p.asignadoA}</td>
-                        <td>${insts}${verif}</td>
-                        <td>${p.estado} ${p.tiempoAcumulado ? `(${formatoTiempo(p.tiempoAcumulado)})` : ''}</td>
-                        <td style="width: 150px; background-color: ${p.firmaDigital ? '#fafafa' : '#fff'};">${bloqueFirmaQC}</td>
-                    </tr>
-                `;
+                pasosHTML += `<tr><td>${p.op}</td><td>${p.maquina}</td><td>${p.tarea}</td><td>${p.asignadoA}</td><td>${insts}${verif}</td><td>${p.estado} ${p.tiempoAcumulado ? `(${formatoTiempo(p.tiempoAcumulado)})` : ''}</td><td style="width: 150px;">${bloqueFirmaQC}</td></tr>`;
             });
 
             return `
-                <!DOCTYPE html>
-                <html lang="es">
+                <html>
                 <head>
                     <meta charset="UTF-8">
                     <title>Hoja de Ruta - OT ${data.ot}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 25px; color: #000; background: #fff; font-size: 12px; }
+                        body { font-family: Arial, sans-serif; margin: 25px; color: #000; font-size: 12px; }
                         .header-print { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 25px; }
                         .header-print h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
                         .grid-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 25px; }
@@ -794,23 +789,15 @@
                         .box-info strong { display: block; font-size: 9px; text-transform: uppercase; color: #444; margin-bottom: 3px; }
                         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                         th, td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
-                        th { background-color: #eaeaea; font-size: 11px; text-transform: uppercase; }
+                        th { background-color: #eaeaea; }
                         .footer { margin-top: 50px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
-                        @media print { body { margin: 10px; } }
                     </style>
                 </head>
                 <body>
                     <div class="header-print">
-                        <div>
-                            <h1>🚀 VENG S.A.</h1>
-                            <p style="margin: 3px 0 0 0; font-weight: bold; color: #333;">HOJA DE RUTA DIGITAL DE PLANTA</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <h2 style="margin: 0; font-size: 18px;">OT: ${data.ot || '----'}</h2>
-                            <p style="margin: 2px 0 0 0;">POS: ${data.pos || '---'}</p>
-                        </div>
+                        <div><h1>🚀 VENG S.A.</h1><p style="margin: 3px 0 0 0; font-weight: bold;">HOJA DE RUTA DIGITAL DE PLANTA</p></div>
+                        <div style="text-align: right;"><h2>OT: ${data.ot || '----'}</h2><p>POS: ${data.pos || '---'}</p></div>
                     </div>
-
                     <div class="grid-info">
                         <div class="box-info"><strong>Nº Plano / Parte</strong>${data.nPlano || '---'}</div>
                         <div class="box-info"><strong>Solicitante / Cliente</strong>${data.cliente || '---'}</div>
@@ -822,34 +809,14 @@
                         <div class="box-info"><strong>Fecha Límite</strong>${data.fecha || '---'}</div>
                         <div class="box-info"><strong>Estado de OT</strong>${data.estado || 'Pendiente'}</div>
                     </div>
-
-                    ${data.notes ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales / Generales</strong>${data.notes}</div>` : ''}
-
-                    <h3 style="margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">📋 Secuencia Operacional de Manufactura</h3>
+                    ${data.notes ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales</strong>${data.notes}</div>` : ''}
+                    <h3>📋 Secuencia Operacional de Manufactura</h3>
                     <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 40px;">OP</th>
-                                <th>Máquina / Puesto</th>
-                                <th>Operación</th>
-                                <th>Asignado A</th>
-                                <th>Instrumentos (Cotas)</th>
-                                <th>Estado / Tiempo</th>
-                                <th>Firma Digital / Control QC</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${pasosHTML}
-                        </tbody>
+                        <thead><tr><th>OP</th><th>Máquina / Puesto</th><th>Operación</th><th>Asignado A</th><th>Instrumentos</th><th>Estado / Tiempo</th><th>Firma / Control QC</th></tr></thead>
+                        <tbody>${pasosHTML}</tbody>
                     </table>
-
-                    <div class="footer">
-                        Documento Oficial de Planta - VENG S.A. | Fecha y Hora de Impresión: ${new Date().toLocaleString()}
-                    </div>
-
-                    <script>
-                        window.onload = function() { window.print(); window.close(); }
-                    <\/script>
+                    <div class="footer">Documento Oficial de Planta - VENG S.A.</div>
+                    <script>window.onload = function() { window.print(); window.close(); }<\/script>
                 </body>
                 </html>
             `;
@@ -864,11 +831,8 @@
                 let maquinaSel = fila.querySelector(".select-maquina-ruta").value;
                 let tareaSel = fila.querySelector(".select-tarea-ruta").value;
                 let operarioSel = fila.querySelector(".select-operario-ruta").value;
-                
                 let instsChecked = [];
-                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => {
-                    instsChecked.push(chk.value);
-                });
+                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => { instsChecked.push(chk.value); });
 
                 pasosFormulados.push({
                     op: parseInt(opSel) || 0,
@@ -982,6 +946,12 @@
                 });
                 htmlRutaVisual += `</div>`;
 
+                // Configuración dinámica del botón de planos/diseño según extensión (.pdf vs CAD 3D)
+                let esPDF = orden.urlModelo3d && orden.urlModelo3d.toLowerCase().includes('.pdf');
+                let iconoBotonPlano = esPDF ? "📄" : "📐";
+                let tituloBotonPlano = esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D Interactiva (STEP/STL)";
+                let colorBotonPlano = esPDF ? "#2aa198" : "#38bdf8";
+
                 if (orden.estado !== "Terminado") {
                     let celdaFecha = "";
                     if (orden.fecha) {
@@ -1025,7 +995,7 @@
                                     <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
                                         <div style="display:flex; gap:4px;">
                                             <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:#38bdf8; color:#38bdf8;" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="Ver Diseño 3D (STEP / STL)">📐</button>
+                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
                                         </div>
                                         ${esAdmin ? `
                                             <div style="display:flex; gap:4px;">
@@ -1055,7 +1025,7 @@
                                 <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
                                     <div style="display:flex; gap:4px;">
                                         <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:#38bdf8; color:#38bdf8;" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="Ver Diseño 3D (STEP / STL)">📐</button>
+                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" onclick="abrirVisor3D('${orden.urlModelo3d || ''}', '${orden.ot}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
                                     </div>
                                     ${esAdmin ? `
                                         <div style="display:flex; gap:4px;">
