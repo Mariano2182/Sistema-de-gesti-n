@@ -344,78 +344,118 @@
                 conectarEscuchaFirebase();
             }
 
-            // Inicializar el motor gráfico apenas cargue el sistema
-            inicializarVisor3DNative();
+            // 🚫 CORRECCIÓN: Eliminamos la inicialización inmediata para evitar el bug del contenedor 0x0
 
         } catch (e) {
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO (OPCIÓN 2) - CORREGIDA */
-function inicializarVisor3DNative() {
-    const contenedor = document.getElementById("contenedorVisor3D");
-    const placeholder = document.getElementById("placeholderVisor");
-    const textoPlaceholder = document.getElementById("textoPlaceholder");
-    const inputLocal = document.getElementById("inputArchivo3D");
+        // ============================================================================
+        // --- CONTROL DEL VISOR 3D (APERTURA, CIERRE E INICIALIZACIÓN LAZY) ---
+        // ============================================================================
 
-    // Configuración de rutas internas WebAssembly del motor
-    OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
+        function abrirVisor3D(url, ot) {
+            const modal = document.getElementById("modalVisor3D");
+            document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico de Planos 3D - OT ${ot || 'Sin OT'}`;
+            
+            // 1. Abrimos primero el modal para asegurar dimensiones del contenedor
+            modal.showModal();
+            
+            const placeholder = document.getElementById("placeholderVisor");
+            const textoPlaceholder = document.getElementById("textoPlaceholder");
 
-    visor3D = new OV.EmbeddedViewer(contenedor, {
-        backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo
-        edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
-        onModelLoaded: () => {
-            placeholder.style.display = "none";
-        },
-        onModelLoadFailed: () => {
-            placeholder.style.display = "flex";
-            textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar.</span> El archivo podría no estar soportado o estar corrupto.";
+            // 2. Inicialización Perezosa (Lazy Loading)
+            if (!visor3D) {
+                inicializarVisor3DNative();
+            } else {
+                // Forzar recalculado de tamaño del canvas interno
+                visor3D.Resize();
+            }
+
+            // 3. Evaluar carga remota vs local
+            if (url && url.trim() !== "") {
+                placeholder.style.display = "flex";
+                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Cargando modelo 3D desde servidor...</span>";
+                visor3D.LoadModelFromUrlList([url]);
+            } else {
+                placeholder.style.display = "flex";
+                textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado en red. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí adentro.";
+            }
         }
-    });
 
-    // --- FUNCIÓN CENTRAL PARA CARGAR ARCHIVOS ---
-    function procesarArchivos(archivos) {
-        if (!archivos || archivos.length === 0) return;
-        placeholder.style.display = "flex";
-        textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD en local...</span>";
-        
-        // Convertimos el FileList del navegador a un Array estándar para evitar fallos en la librería
-        const arrayArchivos = Array.from(archivos);
-        visor3D.LoadModelFromFileList(arrayArchivos);
-    }
+        // Escuchador interactivo para el botón de cierre del modal
+        document.getElementById("btnCerrarVisor").addEventListener("click", () => {
+            document.getElementById("modalVisor3D").close();
+        });
 
-    // 1. EVENTO: CLIC EN BOTÓN "ADJUNTAR ARCHIVO"
-    inputLocal.addEventListener("change", (event) => {
-        procesarArchivos(event.target.files);
-        event.target.value = ""; // Resetear el input para permitir cargar el mismo archivo 2 veces seguidas
-    });
+        /* INICIALIZACIÓN DEL MOTOR 3D INTEGRADO - CORREGIDA */
+        function inicializarVisor3DNative() {
+            const contenedor = document.getElementById("contenedorVisor3D");
+            const placeholder = document.getElementById("placeholderVisor");
+            const textoPlaceholder = document.getElementById("textoPlaceholder");
+            const inputLocal = document.getElementById("inputArchivo3D");
 
-    // 2. EVENTO: DRAG & DROP (ARRASTRAR Y SOLTAR)
-    // Evitar que el navegador abra el archivo de texto en toda la ventana
-    window.addEventListener('dragover', (e) => e.preventDefault(), false);
-    window.addEventListener('drop', (e) => e.preventDefault(), false);
+            // Configuración de rutas internas WebAssembly del motor
+            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.15.0/libs/');
 
-    // Capturar cuando el archivo se arrastra SOBRE el visor 3D
-    contenedor.addEventListener('dragover', (event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
-        // Feedback visual: iluminar los bordes cuando el archivo pasa por encima
-        contenedor.style.border = "2px dashed #38bdf8"; 
-    });
+            try {
+                visor3D = new OV.EmbeddedViewer(contenedor, {
+                    backgroundColor: new OV.RGBAColor(15, 23, 42, 255), // Color idéntico al fondo
+                    edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
+                    onModelLoaded: () => {
+                        placeholder.style.display = "none";
+                    },
+                    onModelLoadFailed: () => {
+                        placeholder.style.display = "flex";
+                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar.</span> El archivo podría no estar soportado o estar corrupto.";
+                    }
+                });
+            } catch (error) {
+                console.error("Error al instanciar el visor 3D:", error);
+                return;
+            }
 
-    // Quitar el borde si sacan el mouse de la zona
-    contenedor.addEventListener('dragleave', (event) => {
-        event.preventDefault();
-        contenedor.style.border = "none";
-    });
+            // --- FUNCIÓN CENTRAL PARA CARGAR ARCHIVOS ---
+            function procesarArchivos(archivos) {
+                if (!archivos || archivos.length === 0) return;
+                placeholder.style.display = "flex";
+                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD en local...</span>";
+                
+                // Convertimos el FileList del navegador a un Array estándar para evitar fallos en la librería
+                const arrayArchivos = Array.from(archivos);
+                visor3D.LoadModelFromFileList(arrayArchivos);
+            }
 
-    // Capturar el momento en que SUELTAN el archivo
-    contenedor.addEventListener('drop', (event) => {
-        event.preventDefault();
-        contenedor.style.border = "none"; // Quitar feedback visual
-        procesarArchivos(event.dataTransfer.files);
-    });
-}
+            // 1. EVENTO: CLIC EN BOTÓN "ADJUNTAR ARCHIVO"
+            inputLocal.addEventListener("change", (event) => {
+                procesarArchivos(event.target.files);
+                event.target.value = ""; // Resetear el input para permitir cargar el mismo archivo 2 veces seguidas
+            });
+
+            // 2. EVENTO: DRAG & DROP (ARRASTRAR Y SOLTAR) GLOBAL
+            window.addEventListener('dragover', (e) => e.preventDefault(), false);
+            window.addEventListener('drop', (e) => e.preventDefault(), false);
+
+            // Capturar cuando el archivo se arrastra SOBRE el visor 3D
+            contenedor.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+                contenedor.style.border = "2px dashed #38bdf8"; 
+            });
+
+            // Quitar el borde si sacan el mouse de la zona
+            contenedor.addEventListener('dragleave', (event) => {
+                event.preventDefault();
+                contenedor.style.border = "none";
+            });
+
+            // Capturar el momento en que SUELTAN el archivo
+            contenedor.addEventListener('drop', (event) => {
+                event.preventDefault();
+                contenedor.style.border = "none"; 
+                procesarArchivos(event.dataTransfer.files);
+            });
+        }
 
         function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
             const contenedor = document.getElementById("contenedorPasosForm");
@@ -1030,4 +1070,5 @@ function inicializarVisor3DNative() {
         }
     </script>
 </body>
+</html>
 </html>
