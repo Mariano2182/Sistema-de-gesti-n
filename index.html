@@ -3,1102 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VENG - Sistema de Hoja de Ruta Digital</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/dist/online3dviewer.min.js"></script>
-
+    <title>Sistema de Gestión de Órdenes - Taller VENG</title>
     <style>
         :root {
-            --primary: #268bd2;
+            --primary-color: #0052cc;
+            --secondary-color: #f4f5f7;
+            --text-color: #172b4d;
+            --border-color: #dfe1e6;
+            --success-color: #36b37e;
         }
-        @keyframes parpadeoAlerta {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.98); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        .alerta-hoy {
-            animation: parpadeoAlerta 1.2s infinite ease-in-out;
-            background-color: #d9411e !important;
-            color: white !important;
-        }
-        .badge-fecha {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: bold;
-            display: inline-block;
-            text-align: center;
-            font-size: 0.85rem;
-        }
-        .header-taller {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        #pantallaLogin {
-            max-width: 500px;
-            margin: 80px auto;
-            padding: 30px;
-            background-color: #1a242f;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
-        }
-        .btn-usuario {
-            margin-bottom: 12px;
-            text-align: left;
-            padding-left: 20px;
-        }
-        .bloque-nota {
-            display: block;
-            margin-top: 6px;
-            background-color: #232e3c;
-            padding: 6px 10px;
-            border-left: 4px solid #cb4b16;
-            color: #e2e8f0;
-            border-radius: 0 6px 6px 0;
-            font-size: 0.8rem;
-        }
-        .contenedor-ruta-visual {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-top: 8px;
-            font-size: 0.8rem;
-        }
-        .paso-card-visual {
-            background-color: #1e293b;
-            border: 1px solid #334155;
-            padding: 8px 12px;
-            border-radius: 6px;
-        }
-        .paso-card-visual.en-proceso { border-left: 5px solid #268bd2; background-color: #14253d; }
-        .paso-card-visual.pausado { border-left: 5px solid #cb4b16; }
-        .paso-card-visual.terminado { border-left: 5px solid #2aa198; opacity: 0.7; }
-        .paso-card-visual.pendiente { border-left: 5px solid #64748b; }
 
-        .instrumentos-container {
-            display: flex;
-            flex-wrap: wrap;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f7f9fa;
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .info-box {
+            background-color: #deebff;
+            color: #0747a6;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #fbfbfc;
+        }
+
+        .btn-visor {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
             gap: 8px;
-            margin-top: 4px;
-            background: #0f172a;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-visor:hover {
+            background-color: #0065ff;
+        }
+
+        .badge {
+            background-color: #eae6ff;
+            color: #403294;
             padding: 4px 8px;
             border-radius: 4px;
-        }
-        .instrumento-tag {
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }
-        .instrumento-tag.checked {
-            color: #38bdf8;
+            font-size: 0.85rem;
             font-weight: bold;
-        }
-        .fila-paso-form {
-            background: #141e26;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            border-left: 4px solid #268bd2;
-        }
-        dialog article {
-            background-color: #1a242f !important;
-            border: 1px solid #334155;
-        }
-        #placeholderVisor {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-color: #0f172a;
-            color: #64748b;
-            z-index: 10;
-            pointer-events: none;
-            padding: 20px;
-            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <div id="pantallaLogin">
-        <h2>🚀 VENG - Control de Planta</h2>
-        <p style="color: gray;">Selecciona tu usuario para ingresar al sistema</p>
-        <hr>
-        <button class="btn-usuario" onclick="iniciarSesion('admin')">👔 Administrador / Oficina Técnica</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Fernando Morano')">🛠️ Fernando Morano</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('David Díaz')">🛠️ David Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Jorge Quinteros')">🛠️ Jorge Quinteros</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gerardo Barbero')">🛠️ Gerardo Barbero</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Sebastián Díaz')">🛠️ Sebastián Díaz</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Mariano Ramírez')">🛠️ Mariano Ramírez</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gustavo Fernández')">🛠️ Gustavo Fernández</button>
-        <button class="btn-usuario secondary" onclick="iniciarSesion('Gonzalo Turco')">🛠️ Gonzalo Turco</button>
+<div class="container">
+    <h1>📋 Hoja de Ruta - Control de Producción</h1>
+    
+    <!-- Cuadro informativo para guiar a los operarios en la estación fija o tablet -->
+    <div class="info-box">
+        <strong>💡 Instrucción para visualización 3D:</strong> Al hacer clic en <strong>"📐 Ver en Autodesk"</strong>, el archivo de diseño se descargará automáticamente en tu dispositivo y se abrirá el visor oficial de Autodesk en una nueva pestaña. Solo debes arrastrar el archivo descargado al centro de la pantalla del visor para medir, rotar o cortar la pieza.
     </div>
 
-    <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
-        
-        <div class="header-taller">
-            <div>
-                <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
-                <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
-            </div>
-            <div>
-                <button class="outline contrast" onclick="cerrarSesion()" style="width: auto; padding: 5px 15px; margin: 0;">Cerrar Sesión</button>
-            </div>
-        </div>
-        <hr>
-        
-        <section id="seccionFormulario">
-            <h3 id="tituloFormulario">Nueva Hoja de Ruta - Oficina Técnica</h3>
-            <form id="formularioOrden" onsubmit="event.preventDefault(); guardarOrden();">
-                
-                <div class="grid">
-                    <label>OT (Orden de Trabajo)
-                        <input type="text" id="ot" placeholder="Ej: 1014" required>
-                    </label>
-                    <label>POS (Posición)
-                        <input type="text" id="pos" placeholder="Ej: 001" required>
-                    </label>
-                    <label>Nº Plano / Parte
-                        <input type="text" id="nPlano" placeholder="Ej: s/n o Código de plano" required>
-                    </label>
-                </div>
+    <!-- Tabla de órdenes de producción -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID Orden</th>
+                <th>Descripción de la Pieza</th>
+                <th>Estado</th>
+                <th>Archivo Adjunto</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tablaOrdenesBody">
+            <!-- Los datos se inyectan dinámicamente mediante JavaScript -->
+        </tbody>
+    </table>
+</div>
 
-                <div class="grid">
-                    <label>Solicitante / Cliente
-                        <input type="text" id="cliente" placeholder="Ej: Bianchi Carlos Roberto" required>
-                    </label>
-                    <label>Proyecto
-                        <input type="text" id="proyecto" placeholder="Ej: Corrección cabezal / N/A" required>
-                    </label>
-                    <label>Área
-                        <input type="text" id="area" placeholder="Ej: Comercial / Manufactura" required>
-                    </label>
-                </div>
+<script>
+    // MOCK DATA: Simulación de tus datos de Firebase o Base de Datos local.
+    // Asegúrate de que tu script real mapdee correctamente "archivoAdjuntoData".
+    let todasLasOrdenes = [
+        {
+            id: "ORD-101",
+            descripcion: "Soporte de Inyector Superior - Aluminio",
+            estado: "En Proceso",
+            archivoAdjuntoData: {
+                nombre: "soporte_inyector.stp",
+                // Base64 de ejemplo (reemplazar por tus strings reales de Firebase)
+                base64: "data:application/octet-stream;base64,VGhpcyBpcyBhIG1vY2sgU1RQIHRleHQgZmlsZSBmb3IgZGVtb25zdHJhdGlvbi4=" 
+            }
+        },
+        {
+            id: "ORD-102",
+            descripcion: "Brida de Acoplamiento Principal",
+            estado: "Pendiente",
+            archivoAdjuntoData: {
+                nombre: "brida_acoplamiento.stp",
+                base64: "data:application/octet-stream;base64,VGhpcyBpcyBhIG1vY2sgU1RQIHRleHQgZmlsZSBmb3IgZGVtb25zdHJhdGlvbi4="
+            }
+        }
+    ];
 
-                <div class="grid">
-                    <label>Denominación de la Pieza
-                        <input type="text" id="producto" placeholder="Ej: Eje motriz" required>
-                    </label>
-                    <label>Material (Calidad)
-                        <input type="text" id="material" placeholder="Ej: Fundición / SAE 4140" required>
-                    </label>
-                </div>
+    // Función para renderizar la tabla en el taller
+    function renderizarTabla() {
+        const tbody = document.getElementById("tablaOrdenesBody");
+        tbody.innerHTML = "";
 
-                <div class="grid">
-                    <label>Cantidad
-                        <input type="number" id="cantidad" placeholder="1" min="1" required>
-                    </label>
-                    <label>Fecha Límite de Entrega
-                        <input type="date" id="fecha" required>
-                    </label>
-                </div>
-
-                <div style="background-color: #1a242f; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4 style="margin: 0; color: #268bd2;">📋 Secuencia Operacional (Ruta)</h4>
-                        <button type="button" class="button" style="width: auto; padding: 4px 12px; margin:0;" onclick="agregarFilaPaso()">➕ Agregar Operación</button>
-                    </div>
-                    <div id="contenedorPasosForm"></div>
-                </div>
-
-                <div class="grid">
-                    <label>Observaciones Iniciales
-                        <input type="text" id="notes" placeholder="Escribir aquí instrucciones generales para la planta...">
-                    </label>
-                    <label>📎 Adjuntar Plano o Diseño Local (Máx. 1MB - PDF, STEP, STP, STL)
-                        <input type="file" id="archivoAdjunto" accept=".pdf,.step,.stp,.stl">
-                        <small id="infoArchivoEdicion" style="color: #38bdf8; display: none; margin-top: 5px;"></small>
-                    </label>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-top: 15px;">
-                    <button type="submit" id="btnFormulario" style="margin: 0; flex: 1;">Emitir Hoja de Ruta</button>
-                    <button type="button" class="outline contrast" style="margin: 0; width: auto; padding: 0 25px;" onclick="imprimirDesdeFormulario()">🖨️ Imprimir Hoja</button>
-                </div>
-            </form>
-        </section>
-
-        <section style="margin-top: 30px; margin-bottom: 30px; background-color: #1a242f; padding: 15px; border-radius: 8px;">
-            <div class="grid" style="margin-bottom: 0;">
-                <div>
-                    <label for="buscadorCliente" style="font-weight: bold;">🔍 Filtrar por Cliente/Solicitante:</label>
-                    <input type="search" id="buscadorCliente" placeholder="Escribe para buscar..." oninput="mostrarTablas()">
-                </div>
-                <div>
-                    <label for="buscadorOT" style="font-weight: bold;">🔢 Filtrar por OT:</label>
-                    <input type="search" id="buscadorOT" placeholder="Buscar por número de OT..." oninput="mostrarTablas()">
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <h3>📋 Hojas de Ruta Activas en Planta</h3>
-            <figure>
-                <table role="grid">
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">OT / POS</th>
-                            <th style="width: 180px;">Cliente / Plano</th>
-                            <th>Denominación de Pieza y Hoja de Ruta Activa</th>
-                            <th style="width: 80px;">Cant.</th>
-                            <th style="width: 140px;">Plazo Entrega</th>
-                            <th style="width: 150px;">Estado Actual</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaDeOrdenes"></tbody>
-                </table>
-            </figure>
-        </section>
-
-        <section style="margin-top: 50px;">
-            <h3>📦 Historial de Trabajos Finalizados (Entregados)</h3>
-            <figure>
-                <table role="grid" style="background-color: #141e26;">
-                    <thead>
-                        <tr>
-                            <th>OT / POS</th>
-                            <th>Cliente / Plano</th>
-                            <th>Denominación de Pieza / Ruta Ejecutada</th>
-                            <th>Cant.</th>
-                            <th>Fecha Fin</th>
-                            <th>Tiempos Totales</th>
-                            <th id="columnaAccionesHistorial">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaHistorial"></tbody>
-                </table>
-            </figure>
-        </section>
-    </main>
-
-    <dialog id="modalVisor3D">
-      <article style="max-width: 95%; width: 1300px; height: 90vh; display: flex; flex-direction: column; padding: 20px;">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding-bottom:10px; flex-wrap: wrap; gap: 10px;">
-          <h3 style="margin:0; flex: 1;" id="tituloVisor3D">📐 Visor de Planos Técnicos</h3>
-          
-          <button class="outline" id="btnAdjuntar3DModal" style="width: auto; padding: 5px 15px; margin:0; border-color:#38bdf8; color:#38bdf8;" onclick="document.getElementById('inputArchivo3D').click()">
-            📁 Adjuntar Archivo Local (.STEP / .STL)
-          </button>
-          <input type="file" id="inputArchivo3D" style="display:none;" accept=".step,.stp,.stl,.obj">
-
-          <button class="outline contrast" id="btnCerrarVisor" style="width: auto; padding: 5px 15px; margin:0; border-color:#d93526; color:#d93526;">❌ Cerrar</button>
-        </header>
-
-        <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column;">
+        todasLasOrdenes.forEach(orden => {
+            const tr = document.createElement("tr");
             
-            <div id="contenedorVisor3D" style="flex: 1; width: 100%; position: relative; display: block;"></div>
-            
-            <iframe id="contenedorPDF" style="flex: 1; width: 100%; height: 100%; border: none; display: none; background-color: #fff;"></iframe>
+            tr.innerHTML = `
+                <td><strong>${orden.id}</strong></td>
+                <td>${orden.descripcion}</td>
+                <td><span class="badge">${orden.estado}</span></td>
+                <td>📁 ${orden.archivoAdjuntoData ? orden.archivoAdjuntoData.nombre : 'Sin archivo'}</td>
+                <td>
+                    ${orden.archivoAdjuntoData ? 
+                        `<button class="btn-visor" onclick="abrirVisor3D('${orden.id}')">📐 Ver en Autodesk</button>` : 
+                        `<button class="btn-visor" style="background:#ccc; cursor:not-allowed;" disabled>No disponible</button>`
+                    }
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
-            <div id="placeholderVisor">
-                <span style="font-size: 3rem; margin-bottom: 10px;">📐</span>
-                <p id="textoPlaceholder" style="margin:0; font-size: 0.9rem; font-weight: 500; padding: 0 20px;">
-                    Selecciona una orden o haz clic arriba para cargar un diseño.
-                </p>
-            </div>
+    // CORRECCIÓN PRINCIPAL: Flujo nativo sin bloqueos para Autodesk Viewer
+    function abrirVisor3D(idOrden) {
+        // Buscar la orden correspondiente en la memoria
+        let orden = todasLasOrdenes.find(o => o.id === idOrden);
+        
+        if (!orden || !orden.archivoAdjuntoData) {
+            alert("No se encontró ningún plano técnico adjunto para esta orden.");
+            return;
+        }
 
-        </div>
-
-        <footer style="padding: 10px 0 0 0; margin-top:10px; font-size: 0.85rem; text-align: left; border-top: 1px solid #334155;">
-          <span style="color: #94a3b8;">💡 <strong>Seguridad VENG S.A:</strong> Los planos se procesan y visualizan de forma local e independiente en cada terminal.</span>
-        </footer>
-      </article>
-    </dialog>
-
-    <script>
-        window.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-        window.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyA1gyEhjH-hVrSiCpkqCEFvISA4dFo3Yn8",
-            authDomain: "sgi-v01.firebaseapp.com",
-            databaseURL: "https://sgi-v01-default-rtdb.firebaseio.com",
-            projectId: "sgi-v01",
-            storageBucket: "sgi-v01.firebasestorage.app",
-            messagingSenderId: "393270414199",
-            appId: "1:393270414199:web:c46753d5fbbcb7a033ef72",
-            measurementId: "G-G183P4YRVF"
-        };
-
-        const LISTA_MAQUINAS = ["Ingeniería", "ST40", "VM6-HASS", "Hyundai-WIA", "ACRA", "Cut30", "Form30", "Okuma-Multus4000", "Torno Turri 300", "Torno Travis", "Fresa Schaublin", "Torno Schaublin", "Lymco", "Tarea Manual", "Rectificadora", "CAD/CAM", "Calidad-QC", "Calidad Convencional", "Calidad MMC", "Roscador", "Serrucho", "Proveedor Externo", "Gestión de compras", "Seteador ZOLLER", "Torno paralelo Gauchito T500", "Perforadora Radial Chincul RBP1", "Centro Mecanizado CNC", "Torno CNC", "Torno paralelo", "Fresadora Convencional", "Blastinadora", "Mufla"];
-        const LISTA_TAREAS = ["Corte Material", "CAD", "CAM", "Hoja de Proceso", "Torneado Desbaste", "Torneado de Terminación", "Frenteado", "Fresado", "Perforado", "Roscado", "Perforado-Roscado", "Grabado", "Tronzado", "Avellanado", "Corte por Hilo", "Electro Erosión", "Rectificado", "Tratamiento Térmico", "Cromado", "DMD", "Escareado", "Soldadura", "Blastinado", "Corte Laser CO2", "Integración", "Inspección Visual", "Control Dimensional", "FIT Check", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Mecanizado de Dispositivo", "Rolado", "Materiales", "Herramientas", "Retrabajo", "Medición pie de Máquina", "Rebarbado", "Niquelado", "Zincado", "Medición de Dureza", "Ingeniería", "CAD-CAM", "Planeado", "Torneado"];
-        const LISTA_OPERARIOS = ["Fernando Morano", "David Díaz", "Jorge Quinteros", "Gerardo Barbero", "Sebastián Díaz", "Mariano Ramírez", "Gustavo Fernández", "Gonzalo Turco"];
-        const INSTRUMENTOS_MEDICION = ["ME-01131", "ME-01119", "ME-01147", "ME-1241", "ME-01078", "ME-00541"];
-
-        let db;
-        let todasLasOrdenes = [];
-        let idEditando = null;
-        let usuarioLogueado = null; 
-        let esAdmin = false;
-        let visor3D = null; 
+        const archivoObj = orden.archivoAdjuntoData;
 
         try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-
-            let sesionGuardada = localStorage.getItem("usuarioTaller");
-            if (sesionGuardada) {
-                usuarioLogueado = sesionGuardada;
-                esAdmin = (sesionGuardada === "admin");
-                conectarEscuchaFirebase();
-            }
-        } catch (e) {
-            alert("Error crítico de inicialización: " + e.message);
-        }
-
-        // --- SISTEMA DE VISUALIZACIÓN REESCRITO Y ROBUSTO (PDF + 3D) ---
-        function abrirVisor3DDesdeTabla(idOrden) {
-            let orden = todasLasOrdenes.find(o => o.id === idOrden);
-            if (!orden || !orden.archivoAdjuntoData) {
-                abrirModal3DNative(null, "");
-                return;
-            }
+            // 1. Extraer y limpiar el string Base64 puro
+            const base64Parts = archivoObj.base64.split(',');
+            const base64String = base64Parts[1] ? base64Parts[1] : base64Parts[0];
             
-            const archivoObj = orden.archivoAdjuntoData;
-            
-            try {
-                // 1. Extraemos los componentes de la cadena Base64 generada previamente en Firestore
-                const base64Parts = archivoObj.base64.split(',');
-                const mimeMatch = base64Parts[0].match(/:(.*?);/);
-                const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-                const byteString = atob(base64Parts[1]);
-                const u8arr = new Uint8Array(byteString.length);
-                for (let i = 0; i < byteString.length; i++) {
-                    u8arr[i] = byteString.charCodeAt(i);
-                }
-                
-                // 2. Si el archivo es un PDF
-                if (archivoObj.nombre.toLowerCase().endsWith('.pdf')) {
-                    const blob = new Blob([u8arr], {type: mime});
-                    const urlBlob = URL.createObjectURL(blob);
-                    abrirModalPDF(urlBlob, archivoObj.nombre, orden.ot);
-                    return;
-                }
-
-                // 3. Si el archivo es geometría CAD (STEP / STP / STL)
-                // Usamos la API "File" nativa para que la librería 3DViewer reconozca la extensión y el formato correcto
-                const fileObj = new File([u8arr], archivoObj.nombre, { type: mime });
-                abrirModal3DNative({ file: fileObj, nombre: archivoObj.nombre }, orden.ot);
-
-            } catch(e) {
-                alert("⚠️ Ocurrió un error reconstruyendo el archivo desde la base de datos.");
-                console.error(e);
-            }
-        }
-
-        function abrirModalPDF(urlBlob, nombre, ot) {
-            const modal = document.getElementById("modalVisor3D");
-            document.getElementById("tituloVisor3D").innerText = `📄 Visor PDF - OT ${ot || 'Sin OT'} (${nombre})`;
-            
-            // Configurar entorno UI para PDF
-            document.getElementById("contenedorVisor3D").style.display = "none";
-            document.getElementById("placeholderVisor").style.display = "none";
-            document.getElementById("btnAdjuntar3DModal").style.display = "none";
-            
-            const iframe = document.getElementById("contenedorPDF");
-            iframe.style.display = "block";
-            iframe.src = urlBlob;
-
-            modal.showModal();
-        }
-
-        function abrirModal3DNative(archivoInfo, ot) {
-            const modal = document.getElementById("modalVisor3D");
-            document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico 3D - OT ${ot || 'Sin OT'}`;
-            
-            // Configurar entorno UI para 3D
-            document.getElementById("contenedorPDF").style.display = "none";
-            document.getElementById("contenedorPDF").src = ""; 
-            document.getElementById("contenedorVisor3D").style.display = "block";
-            document.getElementById("btnAdjuntar3DModal").style.display = "inline-block";
-            
-            modal.showModal();
-            const placeholder = document.getElementById("placeholderVisor");
-            const textoPlaceholder = document.getElementById("textoPlaceholder");
-
-            setTimeout(() => {
-                if (!visor3D) {
-                    inicializarVisor3DNative();
-                } else {
-                    visor3D.Resize();
-                }
-
-                if (archivoInfo && archivoInfo.file) {
-                    placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD desde la orden...</span>";
-                    
-                    // PASO CRÍTICO CORREGIDO: Le pasamos el objeto File generado desde el Base64
-                    visor3D.LoadModelFromFileList([archivoInfo.file]);
-                } else {
-                    placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí.";
-                }
-            }, 100);
-        }
-
-        document.getElementById("btnCerrarVisor").addEventListener("click", () => {
-            document.getElementById("modalVisor3D").close();
-            document.getElementById("contenedorPDF").src = ""; 
-            if(visor3D) visor3D.Clear(); // Limpiamos memoria 3D
-        });
-
-        function inicializarVisor3DNative() {
-            const contenedor = document.getElementById("contenedorVisor3D");
-            const placeholder = document.getElementById("placeholderVisor");
-            const textoPlaceholder = document.getElementById("textoPlaceholder");
-            const inputLocal = document.getElementById("inputArchivo3D");
-
-            OV.SetExternalLibLocation('https://cdn.jsdelivr.net/npm/online-3d-viewer@0.18.0/libs/');
-
-            try {
-                visor3D = new OV.EmbeddedViewer(contenedor, {
-                    backgroundColor: new OV.RGBAColor(15, 23, 42, 255), 
-                    edgeSettings: new OV.EdgeSettings(true, new OV.RGBColor(0, 0, 0), 1),
-                    onModelLoaded: () => {
-                        placeholder.style.display = "none";
-                        if (visor3D) visor3D.Resize();
-                    },
-                    onModelLoadFailed: () => {
-                        placeholder.style.display = "flex";
-                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría. Verifica que sea un formato válido (.STEP, .STL).</span>";
-                    }
-                });
-            } catch (error) {
-                console.error("Error al instanciar el visor 3D:", error);
-                return;
+            // 2. Decodificar la cadena binaria
+            const byteString = atob(base64String);
+            const u8arr = new Uint8Array(byteString.length);
+            for (let i = 0; i < byteString.length; i++) {
+                u8arr[i] = byteString.charCodeAt(i);
             }
 
-            function procesarArchivos(archivos) {
-                if (!archivos || archivos.length === 0) return;
-                placeholder.style.display = "flex";
-                textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD...</span>";
-                const arrayArchivos = Array.from(archivos);
-                visor3D.LoadModelFromFileList(arrayArchivos);
-            }
+            // 3. Generar un objeto binario (Blob) seguro para descarga local
+            const blob = new Blob([u8arr], { type: 'application/octet-stream' });
+            const urlTemporal = URL.createObjectURL(blob);
 
-            inputLocal.addEventListener("change", (event) => {
-                procesarArchivos(event.target.files);
-                event.target.value = ""; 
-            });
+            // 4. Abrir de inmediato el visor oficial de Autodesk en una pestaña nueva
+            window.open("https://viewer.autodesk.com/", "_blank");
 
-            contenedor.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "2px dashed #38bdf8"; });
-            contenedor.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; });
-            contenedor.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; procesarArchivos(e.dataTransfer.files); });
-        }
-        // --- FIN DEL SISTEMA DE VISUALIZACIÓN ---
-
-        function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
-            const contenedor = document.getElementById("contenedorPasosForm");
-            const totalFilas = contenedor.children.length;
-            const opSugerida = opPrev || (totalFilas + 1) * 10;
+            // 5. Forzar la descarga en segundo plano del archivo .STP
+            const link = document.createElement('a');
+            link.href = urlTemporal;
+            link.download = archivoObj.nombre;
+            document.body.appendChild(link);
+            link.click();
             
-            let opcionesMaquinas = `<option value="" disabled ${maquinaPrev ? '' : 'selected'}>Selecciona la máquina...</option>`;
-            LISTA_MAQUINAS.forEach(m => opcionesMaquinas += `<option value="${m}" ${m === maquinaPrev ? 'selected' : ''}>${m}</option>`);
+            // Limpieza de memoria del DOM
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(urlTemporal), 10000);
 
-            let opcionesTareas = `<option value="" disabled ${tareaPrev ? '' : 'selected'}>Selecciona la operación...</option>`;
-            LISTA_TAREAS.forEach(t => opcionesTareas += `<option value="${t}" ${t === tareaPrev ? 'selected' : ''}>${t}</option>`);
-
-            let opcionesOperarios = `<option value="" disabled ${operarioPrev ? '' : 'selected'}>Selecciona el operario...</option>`;
-            LISTA_OPERARIOS.forEach(o => opcionesOperarios += `<option value="${o}" ${o === operarioPrev ? 'selected' : ''}>${o}</option>`);
-
-            let checkboxInstrumentosHTML = "";
-            INSTRUMENTOS_MEDICION.forEach(inst => {
-                const checked = instsChecked.includes(inst) ? "checked" : "";
-                checkboxInstrumentosHTML += `
-                    <label style="display:inline-flex; align-items:center; margin-right:10px; font-size:0.75rem;">
-                        <input type="checkbox" class="chk-instrumento" value="${inst}" ${checked} style="margin-right:4px;"> ${inst}
-                    </label>
-                `;
-            });
-
-            const divFila = document.createElement("div");
-            divFila.className = "fila-paso-form";
-            divFila.innerHTML = `
-                <div class="grid" style="margin-bottom:10px;">
-                    <div style="max-width:80px;">
-                        <label>OP</label>
-                        <input type="number" class="input-op-ruta" value="${opSugerida}" required>
-                    </div>
-                    <div>
-                        <label>Máquina / Puesto</label>
-                        <select class="select-maquina-ruta" required>${opcionesMaquinas}</select>
-                    </div>
-                    <div>
-                        <label>Operación</label>
-                        <select class="select-tarea-ruta" required>${opcionesTareas}</select>
-                    </div>
-                    <div>
-                        <label>Asignado A</label>
-                        <select class="select-operario-ruta" required>${opcionesOperarios}</select>
-                    </div>
-                    <div style="display:flex; align-items:flex-end; padding-bottom:5px;">
-                        <button type="button" class="outline" style="border-color:#d93526; color:#d93526; margin:0; padding:4px 10px;" onclick="this.parentElement.parentElement.parentElement.remove();">❌ Quitar</button>
-                    </div>
-                </div>
-                <div style="border-top: 1px dashed #334155; padding-top:8px;">
-                    <strong style="font-size:0.75rem; color:#268bd2; display:block; margin-bottom:4px;">📐 Medición Pie de Máquina (Cotas Generales):</strong>
-                    ${checkboxInstrumentosHTML}
-                </div>
-            `;
-            contenedor.appendChild(divFila);
+        } catch (error) {
+            console.error("Error al procesar el archivo CAD:", error);
+            alert("Ocurrió un error al procesar el archivo base64. Verifica la consola.");
         }
+    }
 
-        function formatoTiempo(milisegundos) {
-            if (!milisegundos || milisegundos <= 0) return "0m";
-            let totalMinutos = Math.floor(milisegundos / 60000);
-            let horas = Math.floor(totalMinutos / 60);
-            let minutos = totalMinutos % 60;
-            if (horas > 0) return `${horas}h ${minutos}m`;
-            return `${minutos}m`;
-        }
+    // Inicializar la vista al cargar la pantalla
+    window.onload = renderizarTabla;
+</script>
 
-        function iniciarSesion(usuario) {
-            if (usuario === "admin") {
-                let pin = prompt("Introduce el PIN de Oficina Técnica:");
-                if (pin === "1234") { usuarioLogueado = "admin"; esAdmin = true; } 
-                else { alert("❌ PIN Incorrecto."); return; }
-            } else {
-                let pin = prompt(`Introduce PIN para ${usuario}:`);
-                if (pin === "0000") { usuarioLogueado = usuario; esAdmin = false; } 
-                else { alert("❌ PIN Incorrecto."); return; }
-            }
-            localStorage.setItem("usuarioTaller", usuarioLogueado);
-            conectarEscuchaFirebase();
-        }
-
-        function cerrarSesion() {
-            localStorage.removeItem("usuarioTaller");
-            usuarioLogueado = null; esAdmin = false;
-            document.getElementById("pantallaPrincipal").style.display = "none";
-            document.getElementById("pantallaLogin").style.display = "block";
-        }
-
-        function conectarEscuchaFirebase() {
-            document.getElementById("pantallaLogin").style.display = "none";
-            document.getElementById("pantallaPrincipal").style.display = "block";
-            document.getElementById("nombreUsuarioActivo").innerText = esAdmin ? "👔 Oficina Técnica (Admin)" : `🛠️ Operario: ${usuarioLogueado}`;
-
-            document.getElementById("seccionFormulario").style.display = esAdmin ? "block" : "none";
-            document.getElementById("columnaAccionesHistorial").style.display = "table-cell";
-
-            document.getElementById("contenedorPasosForm").innerHTML = "";
-            if(esAdmin) agregarFilaPaso();
-
-            db.collection("ordenes_veng").onSnapshot((snapshot) => {
-                todasLasOrdenes = [];
-                snapshot.forEach((doc) => {
-                    todasLasOrdenes.push({ id: doc.id, ...doc.data() });
-                });
-                mostrarTablas();
-            });
-        }
-
-        function leerArchivoLocalComoBase64(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    resolve({
-                        nombre: file.name,
-                        base64: e.target.result
-                    });
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function guardarOrden() {
-            if (!db || !esAdmin) return;
-            
-            const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
-            if (filasPasos.length === 0) {
-                alert("⚠️ Debes agregar al menos una operación a la Hoja de Ruta.");
-                return;
-            }
-
-            const btn = document.getElementById("btnFormulario");
-            const inputArchivo = document.getElementById("archivoAdjunto");
-            let archivoDataFinal = null;
-
-            if (inputArchivo.files.length > 0) {
-                const file = inputArchivo.files[0];
-                
-                if (file.size > 1024 * 1024) { 
-                    alert("⚠️ El archivo supera 1 MB. Para mantener el sistema rápido, optimiza el diseño o plano antes de subirlo.");
-                    return;
-                }
-                
-                btn.innerText = "⏳ Codificando archivo en base de datos...";
-                btn.disabled = true;
-                archivoDataFinal = await leerArchivoLocalComoBase64(file);
-            }
-
-            let pasosArray = [];
-            filasPasos.forEach((fila) => {
-                let opSel = fila.querySelector(".input-op-ruta").value;
-                let maquinaSel = fila.querySelector(".select-maquina-ruta").value;
-                let tareaSel = fila.querySelector(".select-tarea-ruta").value;
-                let operarioSel = fila.querySelector(".select-operario-ruta").value;
-                
-                let instsChecked = [];
-                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => { instsChecked.push(chk.value); });
-
-                pasosArray.push({
-                    op: parseInt(opSel),
-                    maquina: maquinaSel,
-                    tarea: tareaSel,
-                    asignadoA: operarioSel,
-                    instrumentos: instsChecked,
-                    estado: "Pendiente",
-                    tiempoAcumulado: 0,
-                    horaInicio: null,
-                    notes: "",
-                    legajo: "",
-                    firmaDigital: "",
-                    fechaFirma: ""
-                });
-            });
-
-            pasosArray.sort((a,b) => a.op - b.op);
-            let ordenAnterior = idEditando ? todasLasOrdenes.find(o => o.id === idEditando) : null;
-            
-            let datosOrden = {
-                ot: document.getElementById("ot").value.trim(),
-                pos: document.getElementById("pos").value.trim(),
-                nPlano: document.getElementById("nPlano").value.trim(),
-                cliente: document.getElementById("cliente").value.trim(),
-                proyecto: document.getElementById("proyecto").value.trim(),
-                area: document.getElementById("area").value.trim(),
-                producto: document.getElementById("producto").value.trim(),
-                material: document.getElementById("material").value.trim(),
-                cantidad: parseInt(document.getElementById("cantidad").value),
-                fecha: document.getElementById("fecha").value,
-                notes: document.getElementById("notes").value.trim(),
-                archivoAdjuntoData: archivoDataFinal || (idEditando && ordenAnterior.archivoAdjuntoData ? ordenAnterior.archivoAdjuntoData : null),
-                pasos: idEditando && ordenAnterior.pasos ? ordenAnterior.pasos : pasosArray,
-                estado: idEditando ? ordenAnterior.estado : "Pendiente"
-            };
-            
-            if (idEditando) {
-                db.collection("ordenes_veng").doc(idEditando).update(datosOrden)
-                .then(() => {limpiarFormularioPosterior();});
-            } else {
-                db.collection("ordenes_veng").add(datosOrden)
-                .then(() => {limpiarFormularioPosterior();});
-            }
-        }
-
-        function limpiarFormularioPosterior() {
-            idEditando = null;
-            const btn = document.getElementById("btnFormulario");
-            btn.innerText = "Emitir Hoja de Ruta";
-            btn.disabled = false;
-            document.getElementById("formularioOrden").reset();
-            document.getElementById("infoArchivoEdicion").style.display = "none";
-            document.getElementById("contenedorPasosForm").innerHTML = "";
-            agregarFilaPaso();
-        }
-
-        function cambiarEstado(id, nuevoEstado) {
-            let orden = todasLasOrdenes.find(o => o.id === id);
-            if (!orden) return;
-
-            let pasos = orden.pasos;
-            let idxActivo = pasos.findIndex(p => p.estado !== "Terminado");
-            if (idxActivo === -1) idxActivo = pasos.length - 1;
-
-            let paso = pasos[idxActivo];
-            let ahora = Date.now();
-
-            if (nuevoEstado === "En proceso") {
-                paso.horaInicio = ahora;
-                paso.estado = "En proceso";
-            } else if (nuevoEstado === "Pausado") {
-                let motivo = prompt("Motivo de Pausa / Notas:", paso.notes || "");
-                if (motivo !== null) paso.notes = motivo.trim();
-                if (paso.horaInicio) {
-                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + (ahora - paso.horaInicio);
-                    paso.horaInicio = null;
-                }
-                paso.estado = "Pausado";
-            } else if (nuevoEstado === "Terminado") {
-                let promptLegajo = prompt(`[CIERRE DE OP ${paso.op}] Ingrese su Número de LEGAJO para validar la operación:`);
-                if (promptLegajo === null || promptLegajo.trim() === "") { alert("❌ Operación cancelada."); return; }
-
-                let promptFirma = prompt(`[FIRMA DIGITAL] Ingrese su Nombre y Apellido para conformidad:`);
-                if (promptFirma === null || promptFirma.trim() === "") { alert("❌ Operación cancelada."); return; }
-
-                let notaFinal = prompt("Anotaciones finales (Opcional):", paso.notes || "");
-                if (notaFinal !== null) paso.notes = notaFinal.trim();
-                
-                if (paso.horaInicio) {
-                    paso.tiempoAcumulado = (paso.tiempoAcumulado || 0) + (ahora - paso.horaInicio);
-                    paso.horaInicio = null;
-                }
-
-                paso.estado = "Terminado";
-                paso.legajo = promptLegajo.trim();
-                paso.firmaDigital = promptFirma.trim();
-                paso.fechaFirma = new Date().toLocaleString('es-AR');
-            }
-
-            let ordenEstadoGlobal = pasos.every(p => p.estado === "Terminado") ? "Terminado" : "En proceso";
-            let actualizacion = { pasos: pasos, estado: ordenEstadoGlobal };
-            if (ordenEstadoGlobal === "Terminado") {
-                actualizacion.fechaFin = new Date().toISOString().split('T')[0];
-            }
-            db.collection("ordenes_veng").doc(id).update(actualizacion);
-        }
-
-        function marcarInstrumentoMesa(idOrden, idxPaso, instVal, checkStatus) {
-            let orden = todasLasOrdenes.find(o => o.id === idOrden);
-            if (!orden) return;
-            
-            if(!orden.pasos[idxPaso].instrumentosVerificadosTaller) {
-                orden.pasos[idxPaso].instrumentosVerificadosTaller = [];
-            }
-            
-            let verificados = orden.pasos[idxPaso].instrumentosVerificadosTaller;
-            if(checkStatus) {
-                if(!verificados.includes(instVal)) verificados.push(instVal);
-            } else {
-                orden.pasos[idxPaso].instrumentosVerificadosTaller = verificados.filter(i => i !== instVal);
-            }
-            db.collection("ordenes_veng").doc(idOrden).update({ pasos: orden.pasos });
-        }
-
-        function editarOrden(id) {
-            let orden = todasLasOrdenes.find(o => o.id === id);
-            if (!orden) return;
-            document.getElementById("ot").value = orden.ot || "";
-            document.getElementById("pos").value = orden.pos || "";
-            document.getElementById("nPlano").value = orden.nPlano || "";
-            document.getElementById("cliente").value = orden.cliente;
-            document.getElementById("proyecto").value = orden.proyecto || "";
-            document.getElementById("area").value = orden.area || "";
-            document.getElementById("producto").value = orden.producto;
-            document.getElementById("material").value = orden.material || "";
-            document.getElementById("cantidad").value = orden.cantidad;
-            document.getElementById("fecha").value = orden.fecha;
-            document.getElementById("notes").value = orden.notes || "";
-            
-            const divInfo = document.getElementById("infoArchivoEdicion");
-            if(orden.archivoAdjuntoData) {
-                divInfo.style.display = "block";
-                divInfo.innerHTML = `📎 Archivo cargado en base de datos: <strong>${orden.archivoAdjuntoData.nombre}</strong> (Selecciona un archivo nuevo solo si deseas cambiarlo).`;
-            } else {
-                divInfo.style.display = "none";
-            }
-
-            document.getElementById("contenedorPasosForm").innerHTML = "";
-            orden.pasos.forEach(p => agregarFilaPaso(p.op, p.maquina, p.tarea, p.asignadoA, p.instrumentos || []));
-            
-            idEditando = id;
-            document.getElementById("btnFormulario").innerText = "💾 Guardar Cambios en Ruta";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function eliminarOrden(id) {
-            if (confirm("🚨 ¿Eliminar esta Hoja de Ruta de VENG de forma permanente?")) {
-                db.collection("ordenes_veng").doc(id).delete();
-            }
-        }
-
-        function generarHTMLImpresion(data) {
-            let pasosHTML = "";
-            data.pasos.forEach(p => {
-                let insts = p.instrumentos && p.instrumentos.length > 0 ? p.instrumentos.join(", ") : "Ninguno";
-                let verif = p.instrumentosVerificadosTaller && p.instrumentosVerificadosTaller.length > 0 ? `<br><small><b>Verificado:</b> ${p.instrumentosVerificadosTaller.join(", ")}</small>` : '';
-                let bloqueFirmaQC = `<span style="color:#666; font-style:italic;">Pendiente</span>`;
-                if (p.legajo && p.firmaDigital) {
-                    bloqueFirmaQC = `<div style="font-size:10px; line-height: 1.2;"><b>Firma:</b> ${p.firmaDigital}<br><b>Legajo:</b> ${p.legajo}<br><small style="font-size:8px; color:#555;">${p.fechaFirma || ''}</small></div>`;
-                }
-                pasosHTML += `<tr><td>${p.op}</td><td>${p.maquina}</td><td>${p.tarea}</td><td>${p.asignadoA}</td><td>${insts}${verif}</td><td>${p.estado} ${p.tiempoAcumulado ? `(${formatoTiempo(p.tiempoAcumulado)})` : ''}</td><td style="width: 150px;">${bloqueFirmaQC}</td></tr>`;
-            });
-
-            return `
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Hoja de Ruta - OT ${data.ot}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 25px; color: #000; font-size: 12px; }
-                        .header-print { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 25px; }
-                        .header-print h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
-                        .grid-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 25px; }
-                        .box-info { border: 1px solid #000; padding: 8px; border-radius: 4px; }
-                        .box-info strong { display: block; font-size: 9px; text-transform: uppercase; color: #444; margin-bottom: 3px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                        th, td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
-                        th { background-color: #eaeaea; }
-                        .footer { margin-top: 50px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header-print">
-                        <div><h1>🚀 VENG S.A.</h1><p style="margin: 3px 0 0 0; font-weight: bold;">HOJA DE RUTA DIGITAL DE PLANTA</p></div>
-                        <div style="text-align: right;"><h2>OT: ${data.ot || '----'}</h2><p>POS: ${data.pos || '---'}</p></div>
-                    </div>
-                    <div class="grid-info">
-                        <div class="box-info"><strong>Nº Plano / Parte</strong>${data.nPlano || '---'}</div>
-                        <div class="box-info"><strong>Solicitante / Cliente</strong>${data.cliente || '---'}</div>
-                        <div class="box-info"><strong>Proyecto</strong>${data.proyecto || '---'}</div>
-                        <div class="box-info"><strong>Área</strong>${data.area || '---'}</div>
-                        <div class="box-info"><strong>Denominación de Pieza</strong>${data.producto || '---'}</div>
-                        <div class="box-info"><strong>Material / Calidad</strong>${data.material || '---'}</div>
-                        <div class="box-info"><strong>Cantidad</strong>${data.cantidad || '1'}</div>
-                        <div class="box-info"><strong>Fecha Límite</strong>${data.fecha || '---'}</div>
-                        <div class="box-info"><strong>Estado de OT</strong>${data.estado || 'Pendiente'}</div>
-                    </div>
-                    ${data.notes ? `<div class="box-info" style="margin-bottom: 25px;"><strong>Observaciones Iniciales</strong>${data.notes}</div>` : ''}
-                    <h3>📋 Secuencia Operacional de Manufactura</h3>
-                    <table>
-                        <thead><tr><th>OP</th><th>Máquina / Puesto</th><th>Operación</th><th>Asignado A</th><th>Instrumentos</th><th>Estado / Tiempo</th><th>Firma / Control QC</th></tr></thead>
-                        <tbody>${pasosHTML}</tbody>
-                    </table>
-                    <div class="footer">Documento Oficial de Planta - VENG S.A.</div>
-                    <script>window.onload = function() { window.print(); window.close(); }<\/script>
-                </body>
-                </html>
-            `;
-        }
-
-        function imprimirDesdeFormulario() {
-            const filasPasos = document.querySelectorAll("#contenedorPasosForm .fila-paso-form");
-            let pasosFormulados = [];
-            
-            filasPasos.forEach((fila) => {
-                let opSel = fila.querySelector(".input-op-ruta").value;
-                let maquinaSel = fila.querySelector(".select-maquina-ruta").value;
-                let tareaSel = fila.querySelector(".select-tarea-ruta").value;
-                let operarioSel = fila.querySelector(".select-operario-ruta").value;
-                let instsChecked = [];
-                fila.querySelectorAll(".chk-instrumento:checked").forEach(chk => { instsChecked.push(chk.value); });
-
-                pasosFormulados.push({
-                    op: parseInt(opSel) || 0,
-                    maquina: maquinaSel || "No especificada",
-                    tarea: tareaSel || "No especificada",
-                    asignadoA: operarioSel || "No asignado",
-                    instrumentos: instsChecked,
-                    estado: "Pendiente (Borrador)",
-                    tiempoAcumulado: 0,
-                    legajo: "",
-                    firmaDigital: ""
-                });
-            });
-
-            pasosFormulados.sort((a,b) => a.op - b.op);
-
-            let datosBorrador = {
-                ot: document.getElementById("ot").value.trim() || "PRE-EMISIÓN",
-                pos: document.getElementById("pos").value.trim() || "---",
-                nPlano: document.getElementById("nPlano").value.trim() || "---",
-                cliente: document.getElementById("cliente").value.trim() || "---",
-                proyecto: document.getElementById("proyecto").value.trim() || "---",
-                area: document.getElementById("area").value.trim() || "---",
-                producto: document.getElementById("producto").value.trim() || "---",
-                material: document.getElementById("material").value.trim() || "---",
-                cantidad: parseInt(document.getElementById("cantidad").value) || 1,
-                fecha: document.getElementById("fecha").value || "---",
-                notes: document.getElementById("notes").value.trim(),
-                pasos: pasosFormulados,
-                estado: "Borrador Pre-Emisión"
-            };
-
-            let ventanaImpresion = window.open("", "_blank");
-            ventanaImpresion.document.write(generarHTMLImpresion(datosBorrador));
-            ventanaImpresion.document.close();
-        }
-
-        function imprimirOrden(id) {
-            let orden = todasLasOrdenes.find(o => o.id === id);
-            if (!orden) return;
-            let ventanaImpresion = window.open("", "_blank");
-            ventanaImpresion.document.write(generarHTMLImpresion(orden));
-            ventanaImpresion.document.close();
-        }
-
-        function mostrarTablas() {
-            let tablaActivasHTML = document.getElementById("tablaDeOrdenes");
-            let tablaHistorialHTML = document.getElementById("tablaHistorial");
-            
-            tablaActivasHTML.innerHTML = "";
-            tablaHistorialHTML.innerHTML = "";
-
-            let busquedaCliente = document.getElementById("buscadorCliente").value.toLowerCase();
-            let busquedaOT = document.getElementById("buscadorOT").value.trim();
-            let hoy = new Date(); hoy.setHours(0,0,0,0);
-
-            todasLasOrdenes.forEach((orden) => {
-                let pasos = orden.pasos || [];
-                let idxPasoActivo = pasos.findIndex(p => p.estado !== "Terminado");
-                let pasoActivo = idxPasoActivo !== -1 ? pasos[idxPasoActivo] : pasos[pasos.length - 1];
-
-                if (busquedaCliente && !orden.cliente.toLowerCase().includes(busquedaCliente)) return;
-                if (busquedaOT && orden.ot !== busquedaOT) return;
-
-                let esMiTurnoActivo = (!esAdmin && orden.estado !== "Terminado" && pasoActivo.estado !== "Terminado" && pasoActivo.asignadoA === usuarioLogueado);
-
-                let tiempoTotalRuta = 0;
-                let htmlRutaVisual = `<div class="contenedor-ruta-visual">`;
-                
-                pasos.forEach((p, idx) => {
-                    tiempoTotalRuta += (p.tiempoAcumulado || 0);
-                    let claseE = p.estado.toLowerCase().replace(" ", "-");
-                    let icon = p.estado === "Terminado" ? "✓" : (p.estado === "En proceso" ? "⏳ 🔵" : (p.estado === "Pausado" ? "⏸️" : "⚪"));
-                    
-                    let htmlInstrumentosPaso = "";
-                    if(p.instrumentos && p.instrumentos.length > 0) {
-                        htmlInstrumentosPaso = `<div class="instrumentos-container">`;
-                        p.instrumentos.forEach(ins => {
-                            let verifList = p.instrumentosVerificadosTaller || [];
-                            let IsChecked = verifList.includes(ins);
-                            
-                            if(orden.estado !== "Terminado" && p.estado === "En proceso" && p.asignadoA === usuarioLogueado && !esAdmin) {
-                                htmlInstrumentosPaso += `
-                                    <label class="instrumento-tag ${IsChecked?'checked':''}">
-                                        <input type="checkbox" style="margin:0 3px 0 0; width:12px; height:12px;" ${IsChecked?'checked':''} onchange="marcarInstrumentoMesa('${orden.id}', ${idx}, '${ins}', this.checked)"> ${ins}
-                                    </label>
-                                `;
-                            } else {
-                                htmlInstrumentosPaso += `<span class="instrumento-tag ${IsChecked?'checked':''}">⚙️ ${ins}${IsChecked?' (OK)':''}</span>`;
-                            }
-                        });
-                        htmlInstrumentosPaso += `</div>`;
-                    }
-
-                    let bloqueFirmaRutaVisual = "";
-                    if(p.legajo && p.firmaDigital) {
-                        bloqueFirmaRutaVisual = `<div style="color:#2aa198; font-size:0.75rem; font-weight:bold; margin-top:3px; border-top: 1px dotted #334155; padding-top:2px;">✍️ Firmado por: ${p.firmaDigital} (Leg: ${p.legajo})</div>`;
-                    }
-
-                    htmlRutaVisual += `
-                        <div class="paso-card-visual ${claseE}">
-                            <strong>OP ${p.op} - Mág: ${p.maquina}</strong> | <span>${p.tarea}</span> 
-                            <span style="float:right; font-weight:bold;">${icon} ${p.asignadoA}</span>
-                            ${htmlInstrumentosPaso}
-                            ${p.notes ? `<div style="color:#fda4af; font-size:0.7rem; margin-top:3px;">💬 Obs: ${p.notes}</div>`:''}
-                            ${bloqueFirmaRutaVisual}
-                        </div>
-                    `;
-                });
-                htmlRutaVisual += `</div>`;
-
-                let tieneArchivo = !!orden.archivoAdjuntoData;
-                let esPDF = tieneArchivo && orden.archivoAdjuntoData.nombre.toLowerCase().endsWith('.pdf');
-                let iconoBotonPlano = tieneArchivo ? (esPDF ? "📄" : "📐") : "🚫";
-                let tituloBotonPlano = tieneArchivo ? (esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D (STEP/STL)") : "Sin plano adjunto";
-                let colorBotonPlano = tieneArchivo ? (esPDF ? "#2aa198" : "#38bdf8") : "#64748b";
-
-                let estiloFilaTurno = esMiTurnoActivo ? 'style="background-color: #172535; border-left: 5px solid #38bdf8;"' : '';
-                let cartelMiTurno = esMiTurnoActivo ? '<br><span class="badge" style="background-color:#38bdf8; color:#0f172a; font-weight:bold; font-size:0.7rem; display:inline-block; margin-top:5px; animation: parpadeoAlerta 2s infinite ease-in-out;">⚡ TU TURNO AHORA</span>' : '';
-
-                if (orden.estado !== "Terminado") {
-                    let celdaFecha = "";
-                    if (orden.fecha) {
-                        const fEntrega = new Date(orden.fecha + 'T00:00:00');
-                        const dif = Math.floor((fEntrega - hoy) / (1000 * 60 * 60 * 24));
-                        if (dif < 0) celdaFecha = `<span class="badge-fecha" style="background-color: #721c24;">🔴 Retrasado (${Math.abs(dif)}d)</span>`;
-                        else if (dif === 0) celdaFecha = `<span class="badge-fecha alerta-hoy">🚨 HOY</span>`;
-                        else if (dif <= 4) celdaFecha = `<span class="badge-fecha" style="background-color: #b58900;">🟡 ${dif} días</span>`;
-                        else celdaFecha = `<span class="badge-fecha" style="background-color: #2aa198;">🟢 ${dif} días</span>`;
-                    }
-
-                    let btnAccion = "";
-                    if (esAdmin || esMiTurnoActivo) {
-                        if (pasoActivo.estado === "Pendiente") {
-                            btnAccion = `<button class="outline" style="padding:4px 10px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Iniciar</button>`;
-                        } else if (pasoActivo.estado === "En proceso") {
-                            btnAccion = `
-                                <div style="display:flex; gap:4px;">
-                                    <button class="outline warning" style="padding:4px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Pausado')">⏸️ Pausar</button>
-                                    <button class="outline success" style="padding:4px 8px; margin:0;" onclick="cambiarEstado('${orden.id}', 'Terminado')">✅ Cerrar</button>
-                                </div>
-                            `;
-                        } else if (pasoActivo.estado === "Pausado") {
-                            btnAccion = `<button class="outline" style="padding:4px 10px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Reanudar</button>`;
-                        }
-                    } else {
-                        btnAccion = `<small style="color:gray; font-style:italic;">En espera de OP anterior</small>`;
-                    }
-
-                    let filaHTML = `
-                        <tr ${estiloFilaTurno}>
-                            <td><strong>${orden.ot} / ${orden.pos}</strong></td>
-                            <td>${orden.cliente}<br><small style="color:gray;">${orden.nPlano}</small></td>
-                            <td>
-                                <span style="font-weight:bold; color:#268bd2;">${orden.producto}</span>
-                                ${htmlRutaVisual}
-                            </td>
-                            <td>${orden.cantidad}</td>
-                            <td>${celdaFecha}</td>
-                            <td>
-                                <span class="badge" style="background-color:#232e3c;">${pasoActivo.estado}</span>
-                                <br><small>${pasoActivo.asignadoA}</small>
-                                ${cartelMiTurno}
-                            </td>
-                            <td>
-                                <div style="display:flex; gap:8px; align-items:center;">
-                                    ${btnAccion}
-                                    <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-                                        <div style="display:flex; gap:4px;">
-                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                            <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" ${tieneArchivo ? '' : 'disabled'} onclick="abrirVisor3DDesdeTabla('${orden.id}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
-                                        </div>
-                                        ${esAdmin ? `
-                                            <div style="display:flex; gap:4px;">
-                                                <button class="outline contrast" style="padding:2px 6px; margin:0;" onclick="editarOrden('${orden.id}')">✏️</button>
-                                                <button class="outline" style="padding:2px 6px; margin:0; border-color:#d93526; color:#d93526;" onclick="eliminarOrden('${orden.id}')">🗑️</button>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    tablaActivasHTML.innerHTML += filaHTML;
-                } else {
-                    let filaHistorialHTML = `
-                        <tr>
-                            <td><strong>${orden.ot} / ${orden.pos}</strong></td>
-                            <td>${orden.cliente}<br><small style="color:gray;">${orden.nPlano}</small></td>
-                            <td>
-                                <span style="font-weight:bold; color:#2aa198;">${orden.producto}</span>
-                                ${htmlRutaVisual}
-                            </td>
-                            <td>${orden.cantidad}</td>
-                            <td>${orden.fechaFin || '---'}</td>
-                            <td>${formatoTiempo(tiempoTotalRuta)}</td>
-                            <td>
-                                <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-                                    <div style="display:flex; gap:4px;">
-                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1;" onclick="imprimirOrden('${orden.id}')" title="Imprimir Hoja de Ruta">🖨️</button>
-                                        <button class="outline" style="padding:2px 6px; margin:0; font-size:0.75rem; line-height:1; border-color:${colorBotonPlano}; color:${colorBotonPlano};" ${tieneArchivo ? '' : 'disabled'} onclick="abrirVisor3DDesdeTabla('${orden.id}')" title="${tituloBotonPlano}">${iconoBotonPlano}</button>
-                                    </div>
-                                    ${esAdmin ? `
-                                        <div style="display:flex; gap:4px;">
-                                            <button class="outline contrast" style="padding:2px 6px; margin:0;" onclick="editarOrden('${orden.id}')">✏️</button>
-                                            <button class="outline" style="padding:2px 6px; margin:0; border-color:#d93526; color:#d93526;" onclick="eliminarOrden('${orden.id}')">🗑️</button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    tablaHistorialHTML.innerHTML += filaHistorialHTML;
-                }
-            });
-        }
-    </script>
 </body>
 </html>
