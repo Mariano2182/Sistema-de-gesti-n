@@ -284,9 +284,9 @@
     <dialog id="modalVisor3D">
       <article style="max-width: 95%; width: 1300px; height: 90vh; display: flex; flex-direction: column; padding: 20px;">
         <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding-bottom:10px; flex-wrap: wrap; gap: 10px;">
-          <h3 style="margin:0; flex: 1;" id="tituloVisor3D">📐 Visor Mecánico de Planos 3D</h3>
+          <h3 style="margin:0; flex: 1;" id="tituloVisor3D">📐 Visor de Planos Técnicos</h3>
           
-          <button class="outline" style="width: auto; padding: 5px 15px; margin:0; border-color:#38bdf8; color:#38bdf8;" onclick="document.getElementById('inputArchivo3D').click()">
+          <button class="outline" id="btnAdjuntar3DModal" style="width: auto; padding: 5px 15px; margin:0; border-color:#38bdf8; color:#38bdf8;" onclick="document.getElementById('inputArchivo3D').click()">
             📁 Adjuntar Archivo Local (.STEP / .STL)
           </button>
           <input type="file" id="inputArchivo3D" style="display:none;" accept=".step,.stp,.stl,.obj">
@@ -294,13 +294,19 @@
           <button class="outline contrast" id="btnCerrarVisor" style="width: auto; padding: 5px 15px; margin:0; border-color:#d93526; color:#d93526;">❌ Cerrar</button>
         </header>
 
-        <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden;" id="contenedorVisor3D">
+        <div style="flex: 1; position: relative; background-color: #0f172a; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column;">
+            
+            <div id="contenedorVisor3D" style="flex: 1; width: 100%; position: relative; display: block;"></div>
+            
+            <iframe id="contenedorPDF" style="flex: 1; width: 100%; height: 100%; border: none; display: none; background-color: #fff;"></iframe>
+
             <div id="placeholderVisor">
                 <span style="font-size: 3rem; margin-bottom: 10px;">📐</span>
                 <p id="textoPlaceholder" style="margin:0; font-size: 0.9rem; font-weight: 500; padding: 0 20px;">
                     Selecciona una orden o haz clic arriba para cargar un diseño.
                 </p>
             </div>
+
         </div>
 
         <footer style="padding: 10px 0 0 0; margin-top:10px; font-size: 0.85rem; text-align: left; border-top: 1px solid #334155;">
@@ -350,6 +356,7 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
+        // --- SISTEMA DE VISUALIZACIÓN REESCRITO (PDF + 3D) ---
         function abrirVisor3DDesdeTabla(idOrden) {
             let orden = todasLasOrdenes.find(o => o.id === idOrden);
             if (!orden || !orden.archivoAdjuntoData) {
@@ -359,28 +366,55 @@
             
             const archivoObj = orden.archivoAdjuntoData;
             
+            // Reconstruimos el archivo local en memoria para que no pierda su extensión
             const base64Parts = archivoObj.base64.split(',');
-            const mime = base64Parts[0].match(/:(.*?);/)[1];
+            const mimeMatch = base64Parts[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
             const byteString = atob(base64Parts[1]);
-            let n = byteString.length;
-            const u8arr = new Uint8Array(n);
-            while(n--) {
-                u8arr[n] = byteString.charCodeAt(n);
+            const u8arr = new Uint8Array(byteString.length);
+            for (let i = 0; i < byteString.length; i++) {
+                u8arr[i] = byteString.charCodeAt(i);
             }
-            const blob = new Blob([u8arr], {type: mime});
-            const urlBlob = URL.createObjectURL(blob);
+            
+            // Esto crea un objeto "File" idéntico a si el usuario lo hubiera subido desde su PC
+            const file = new File([u8arr], archivoObj.nombre, { type: mime });
+            const urlBlob = URL.createObjectURL(file);
 
-            if (archivoObj.nombre.toLowerCase().includes('.pdf')) {
-                window.open(urlBlob, '_blank');
+            // Si es un PDF, usamos el nuevo Modal PDF interno (evita bloqueos de ventanas emergentes)
+            if (archivoObj.nombre.toLowerCase().endsWith('.pdf')) {
+                abrirModalPDF(urlBlob, archivoObj.nombre, orden.ot);
                 return;
             }
 
-            abrirModal3DNative({ url: urlBlob, nombre: archivoObj.nombre }, orden.ot);
+            // Si es 3D (STEP, STL), le pasamos el objeto File real al visor para que lea la extensión
+            abrirModal3DNative({ file: file, nombre: archivoObj.nombre }, orden.ot);
+        }
+
+        function abrirModalPDF(urlBlob, nombre, ot) {
+            const modal = document.getElementById("modalVisor3D");
+            document.getElementById("tituloVisor3D").innerText = `📄 Visor PDF - OT ${ot || 'Sin OT'} (${nombre})`;
+            
+            // Configurar entorno UI para PDF
+            document.getElementById("contenedorVisor3D").style.display = "none";
+            document.getElementById("placeholderVisor").style.display = "none";
+            document.getElementById("btnAdjuntar3DModal").style.display = "none";
+            
+            const iframe = document.getElementById("contenedorPDF");
+            iframe.style.display = "block";
+            iframe.src = urlBlob; // Inyecta el PDF en el Modal flotante
+
+            modal.showModal();
         }
 
         function abrirModal3DNative(archivoInfo, ot) {
             const modal = document.getElementById("modalVisor3D");
-            document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico de Planos 3D - OT ${ot || 'Sin OT'}`;
+            document.getElementById("tituloVisor3D").innerText = `📐 Visor Mecánico 3D - OT ${ot || 'Sin OT'}`;
+            
+            // Configurar entorno UI para 3D
+            document.getElementById("contenedorPDF").style.display = "none";
+            document.getElementById("contenedorPDF").src = ""; 
+            document.getElementById("contenedorVisor3D").style.display = "block";
+            document.getElementById("btnAdjuntar3DModal").style.display = "inline-block";
             
             modal.showModal();
             const placeholder = document.getElementById("placeholderVisor");
@@ -393,10 +427,11 @@
                     visor3D.Resize();
                 }
 
-                if (archivoInfo && archivoInfo.url) {
+                if (archivoInfo && archivoInfo.file) {
                     placeholder.style.display = "flex";
                     textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD desde base de datos...</span>";
-                    visor3D.LoadModelFromUrlList([{ url: archivoInfo.url, name: archivoInfo.nombre }]);
+                    // USAMOS 'LoadModelFromFileList' EN LUGAR DE URL: esto evita los errores de extensión
+                    visor3D.LoadModelFromFileList([archivoInfo.file]);
                 } else {
                     placeholder.style.display = "flex";
                     textoPlaceholder.innerHTML = "📁 Ningún plano pre-cargado. Presiona 'Adjuntar Archivo Local' o arrastra un archivo (.STEP / .STL) aquí.";
@@ -406,6 +441,7 @@
 
         document.getElementById("btnCerrarVisor").addEventListener("click", () => {
             document.getElementById("modalVisor3D").close();
+            document.getElementById("contenedorPDF").src = ""; // Limpiar PDF de memoria
         });
 
         function inicializarVisor3DNative() {
@@ -426,7 +462,7 @@
                     },
                     onModelLoadFailed: () => {
                         placeholder.style.display = "flex";
-                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría.</span>";
+                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría. Verifica que sea un archivo STEP o STL válido.</span>";
                     }
                 });
             } catch (error) {
@@ -451,6 +487,7 @@
             contenedor.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; });
             contenedor.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); contenedor.style.border = "none"; procesarArchivos(e.dataTransfer.files); });
         }
+        // --- FIN DEL SISTEMA DE VISUALIZACIÓN ---
 
         function agregarFilaPaso(opPrev="", maquinaPrev="", tareaPrev="", operarioPrev="", instsChecked=[]) {
             const contenedor = document.getElementById("contenedorPasosForm");
@@ -588,7 +625,7 @@
                 const file = inputArchivo.files[0];
                 
                 if (file.size > 1024 * 1024) { 
-                    alert("⚠️ El archivo supera 1 MB. Para mantener el sistema 100% gratuito, optimiza o comprime el diseño o plano antes de subirlo.");
+                    alert("⚠️ El archivo supera 1 MB. Para mantener el sistema rápido, optimiza el diseño o plano antes de subirlo.");
                     return;
                 }
                 
@@ -902,9 +939,6 @@
                 if (busquedaCliente && !orden.cliente.toLowerCase().includes(busquedaCliente)) return;
                 if (busquedaOT && orden.ot !== busquedaOT) return;
 
-                // --- NUEVA LÓGICA DE VISIBILIDAD DE PLANTA (100% TRANSPARENTE) ---
-                // Retiramos el bloqueo invisible. Todos los usuarios ven el flujo activo.
-                // Detectamos si la operación activa actual pertenece al operario conectado:
                 let esMiTurnoActivo = (!esAdmin && orden.estado !== "Terminado" && pasoActivo.estado !== "Terminado" && pasoActivo.asignadoA === usuarioLogueado);
 
                 let tiempoTotalRuta = 0;
@@ -922,7 +956,6 @@
                             let verifList = p.instrumentosVerificadosTaller || [];
                             let IsChecked = verifList.includes(ins);
                             
-                            // Permite verificar instrumentos solo si es el operario asignado y la tarea está en progreso
                             if(orden.estado !== "Terminado" && p.estado === "En proceso" && p.asignadoA === usuarioLogueado && !esAdmin) {
                                 htmlInstrumentosPaso += `
                                     <label class="instrumento-tag ${IsChecked?'checked':''}">
@@ -954,12 +987,11 @@
                 htmlRutaVisual += `</div>`;
 
                 let tieneArchivo = !!orden.archivoAdjuntoData;
-                let esPDF = tieneArchivo && orden.archivoAdjuntoData.nombre.toLowerCase().includes('.pdf');
+                let esPDF = tieneArchivo && orden.archivoAdjuntoData.nombre.toLowerCase().endsWith('.pdf');
                 let iconoBotonPlano = tieneArchivo ? (esPDF ? "📄" : "📐") : "🚫";
                 let tituloBotonPlano = tieneArchivo ? (esPDF ? "Abrir Plano PDF Técnico" : "Ver Diseño 3D (STEP/STL)") : "Sin plano adjunto";
                 let colorBotonPlano = tieneArchivo ? (esPDF ? "#2aa198" : "#38bdf8") : "#64748b";
 
-                // Estilo destacado de celda si es el turno activo del operario
                 let estiloFilaTurno = esMiTurnoActivo ? 'style="background-color: #172535; border-left: 5px solid #38bdf8;"' : '';
                 let cartelMiTurno = esMiTurnoActivo ? '<br><span class="badge" style="background-color:#38bdf8; color:#0f172a; font-weight:bold; font-size:0.7rem; display:inline-block; margin-top:5px; animation: parpadeoAlerta 2s infinite ease-in-out;">⚡ TU TURNO AHORA</span>' : '';
 
@@ -975,7 +1007,6 @@
                     }
 
                     let btnAccion = "";
-                    // Los botones de control de estado solo se le muestran al administrador o al operario dueño de la operación actual
                     if (esAdmin || esMiTurnoActivo) {
                         if (pasoActivo.estado === "Pendiente") {
                             btnAccion = `<button class="outline" style="padding:4px 10px; margin:0;" onclick="cambiarEstado('${orden.id}', 'En proceso')">▶️ Iniciar</button>`;
