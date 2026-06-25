@@ -145,7 +145,7 @@
 
     <main class="container-fluid" id="pantallaPrincipal" style="padding: 20px; display: none;">
         
-        <div class="header-taller {">
+        <div class="header-taller">
             <div>
                 <h1>🚀 HOJA DE RUTA DIGITAL (Estándar VENG)</h1>
                 <p style="margin: 0; color: #268bd2;">Usuario activo: <strong id="nombreUsuarioActivo">---</strong></p>
@@ -356,7 +356,7 @@
             alert("Error crítico de inicialización: " + e.message);
         }
 
-        // --- SISTEMA DE VISUALIZACIÓN REESCRITO (PDF + 3D) ---
+        // --- SISTEMA DE VISUALIZACIÓN REESCRITO Y ROBUSTO (PDF + 3D) ---
         function abrirVisor3DDesdeTabla(idOrden) {
             let orden = todasLasOrdenes.find(o => o.id === idOrden);
             if (!orden || !orden.archivoAdjuntoData) {
@@ -366,28 +366,34 @@
             
             const archivoObj = orden.archivoAdjuntoData;
             
-            // Reconstruimos el archivo local en memoria para que no pierda su extensión
-            const base64Parts = archivoObj.base64.split(',');
-            const mimeMatch = base64Parts[0].match(/:(.*?);/);
-            const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-            const byteString = atob(base64Parts[1]);
-            const u8arr = new Uint8Array(byteString.length);
-            for (let i = 0; i < byteString.length; i++) {
-                u8arr[i] = byteString.charCodeAt(i);
-            }
-            
-            // Esto crea un objeto "File" idéntico a si el usuario lo hubiera subido desde su PC
-            const file = new File([u8arr], archivoObj.nombre, { type: mime });
-            const urlBlob = URL.createObjectURL(file);
+            try {
+                // 1. Extraemos los componentes de la cadena Base64 generada previamente en Firestore
+                const base64Parts = archivoObj.base64.split(',');
+                const mimeMatch = base64Parts[0].match(/:(.*?);/);
+                const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+                const byteString = atob(base64Parts[1]);
+                const u8arr = new Uint8Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) {
+                    u8arr[i] = byteString.charCodeAt(i);
+                }
+                
+                // 2. Si el archivo es un PDF
+                if (archivoObj.nombre.toLowerCase().endsWith('.pdf')) {
+                    const blob = new Blob([u8arr], {type: mime});
+                    const urlBlob = URL.createObjectURL(blob);
+                    abrirModalPDF(urlBlob, archivoObj.nombre, orden.ot);
+                    return;
+                }
 
-            // Si es un PDF, usamos el nuevo Modal PDF interno (evita bloqueos de ventanas emergentes)
-            if (archivoObj.nombre.toLowerCase().endsWith('.pdf')) {
-                abrirModalPDF(urlBlob, archivoObj.nombre, orden.ot);
-                return;
-            }
+                // 3. Si el archivo es geometría CAD (STEP / STP / STL)
+                // Usamos la API "File" nativa para que la librería 3DViewer reconozca la extensión y el formato correcto
+                const fileObj = new File([u8arr], archivoObj.nombre, { type: mime });
+                abrirModal3DNative({ file: fileObj, nombre: archivoObj.nombre }, orden.ot);
 
-            // Si es 3D (STEP, STL), le pasamos el objeto File real al visor para que lea la extensión
-            abrirModal3DNative({ file: file, nombre: archivoObj.nombre }, orden.ot);
+            } catch(e) {
+                alert("⚠️ Ocurrió un error reconstruyendo el archivo desde la base de datos.");
+                console.error(e);
+            }
         }
 
         function abrirModalPDF(urlBlob, nombre, ot) {
@@ -401,7 +407,7 @@
             
             const iframe = document.getElementById("contenedorPDF");
             iframe.style.display = "block";
-            iframe.src = urlBlob; // Inyecta el PDF en el Modal flotante
+            iframe.src = urlBlob;
 
             modal.showModal();
         }
@@ -429,8 +435,9 @@
 
                 if (archivoInfo && archivoInfo.file) {
                     placeholder.style.display = "flex";
-                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD desde base de datos...</span>";
-                    // USAMOS 'LoadModelFromFileList' EN LUGAR DE URL: esto evita los errores de extensión
+                    textoPlaceholder.innerHTML = "⏳ <span style='color:#38bdf8;'>Procesando geometría CAD desde la orden...</span>";
+                    
+                    // PASO CRÍTICO CORREGIDO: Le pasamos el objeto File generado desde el Base64
                     visor3D.LoadModelFromFileList([archivoInfo.file]);
                 } else {
                     placeholder.style.display = "flex";
@@ -441,7 +448,8 @@
 
         document.getElementById("btnCerrarVisor").addEventListener("click", () => {
             document.getElementById("modalVisor3D").close();
-            document.getElementById("contenedorPDF").src = ""; // Limpiar PDF de memoria
+            document.getElementById("contenedorPDF").src = ""; 
+            if(visor3D) visor3D.Clear(); // Limpiamos memoria 3D
         });
 
         function inicializarVisor3DNative() {
@@ -462,7 +470,7 @@
                     },
                     onModelLoadFailed: () => {
                         placeholder.style.display = "flex";
-                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría. Verifica que sea un archivo STEP o STL válido.</span>";
+                        textoPlaceholder.innerHTML = "❌ <span style='color:#f43f5e;'>Error al procesar la geometría. Verifica que sea un formato válido (.STEP, .STL).</span>";
                     }
                 });
             } catch (error) {
